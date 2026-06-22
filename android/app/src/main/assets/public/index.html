@@ -1,0 +1,3313 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+        <title>Dateien</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            /* ════════════════════════════════════════
+           DESIGN TOKENS
+           Hintergrund:  fast-schwarz  #131313
+           Button-BG:    #272727  (deutlich heller als BG → gut sichtbar)
+           Akzent:       Bernstein #E8A830
+           Text hell:    #F4F0EB  (sehr hell, kein Blau-Stich)
+           Text mittel:  #B0A898
+           Text dim:     #5C5650
+           ════════════════════════════════════════ */
+            :root {
+                --bg: #131313;
+                --bg1: #1a1a1a;
+                --bg2: #212121;
+                --btn: #2a2a2a;
+                /* Button-Hintergrund – sichtbar heller als BG */
+                --btn-h: #323232;
+                /* Hover / Active */
+                --line: #2e2e2e;
+                --acc: #e8a830;
+                --acc2: #f0bc50;
+                --acc-d: rgba(232, 168, 48, 0.14);
+                --txt: #f4f0eb;
+                /* hell, warm-weiß */
+                --txt2: #b0a898;
+                --txt3: #5c5650;
+                --red: #c85040;
+                --red-d: rgba(200, 80, 64, 0.14);
+                --r: 18px;
+                /* Button-Radius — großzügig rund */
+                --rs: 12px;
+                --nav: calc(64px + env(safe-area-inset-bottom, 0px));
+                --top: calc(56px + env(safe-area-inset-top, 0px));
+                --f: "DM Sans", sans-serif;
+            }
+
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            html,
+            body {
+                height: 100%;
+                background: var(--bg);
+                color: var(--txt);
+                font-family: var(--f);
+                -webkit-font-smoothing: antialiased;
+                overflow: hidden;
+            }
+
+            button {
+                font-family: var(--f);
+                cursor: pointer;
+                border: none;
+                background: none;
+                -webkit-tap-highlight-color: transparent;
+                color: inherit;
+            }
+
+            input {
+                font-family: var(--f);
+            }
+
+            /* ── SCROLL CONTAINER ── */
+            #app {
+                position: fixed;
+                inset: 0;
+                padding-top: var(--top);
+                padding-bottom: var(--nav);
+                overflow-y: auto;
+                overflow-x: hidden;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            #app::-webkit-scrollbar {
+                display: none;
+            }
+
+            /* ── PULL TO REFRESH ── */
+            #pullRefresher {
+                position: fixed;
+                top: var(--top);
+                left: 50%;
+                width: 40px;
+                height: 40px;
+                margin-left: -20px;
+                border-radius: 50%;
+                background: var(--acc);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #fff;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                transform: translateY(-56px);
+                opacity: 0;
+                z-index: 95;
+                pointer-events: none;
+            }
+
+            #pullRefresher svg {
+                width: 20px;
+                height: 20px;
+                fill: currentColor;
+            }
+
+            @keyframes ptr-spin {
+                from {
+                    transform: rotate(0deg);
+                }
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            #pullRefresher.spinning svg {
+                animation: ptr-spin 0.45s linear infinite;
+            }
+
+            /* ── TOP BAR ── */
+            .topbar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: var(--top);
+                background: var(--bg);
+                border-bottom: 1px solid var(--line);
+                display: flex;
+                align-items: center;
+                padding: env(safe-area-inset-top, 0px) 8px 0 16px;
+                z-index: 90;
+            }
+
+            .topbar-title {
+                flex: 1;
+                font-size: 20px;
+                font-weight: 700;
+                letter-spacing: -0.3px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                color: var(--txt);
+            }
+
+            .topbar-title.new-folder-mode {
+                color: var(--acc);
+            }
+
+            .tb-btn {
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--txt2);
+                transition:
+                    background 0.12s,
+                    color 0.12s;
+            }
+
+            .tb-btn:active {
+                background: var(--btn-h);
+                color: var(--acc);
+            }
+
+            .tb-btn.on {
+                color: var(--acc);
+            }
+
+            body.multi-mode #btnBack {
+                display: none !important;
+            }
+            body.multi-mode #btnSelectAll {
+                display: flex !important;
+            }
+
+            /* align select-all circle with per-file circles (fsel-chk center = 16+11=27px) */
+            body.multi-mode .topbar {
+                padding-left: 5px;
+            }
+
+            #btnSelectAll .sel-all-circle {
+                width: 22px;
+                height: 22px;
+                border-radius: 50%;
+                border: 2px solid var(--txt3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition:
+                    background 0.15s,
+                    border-color 0.15s;
+                flex-shrink: 0;
+            }
+
+            #btnSelectAll.all-sel .sel-all-circle {
+                background: var(--acc);
+                border-color: var(--acc);
+                color: #000;
+            }
+
+            #btnSelectAll .sel-all-circle svg {
+                width: 14px;
+                height: 14px;
+                fill: currentColor;
+                opacity: 0;
+            }
+
+            #btnSelectAll.all-sel .sel-all-circle svg {
+                opacity: 1;
+            }
+
+            .tb-btn svg {
+                width: 22px;
+                height: 22px;
+                fill: currentColor;
+            }
+
+            /* ── SEARCH BAR ── */
+            .search-bar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: var(--top);
+                background: var(--bg1);
+                border-bottom: 1px solid var(--line);
+                display: none;
+                align-items: center;
+                padding: env(safe-area-inset-top, 0px) 12px 0;
+                gap: 10px;
+                z-index: 91;
+            }
+
+            .search-bar.on {
+                display: flex;
+            }
+
+            .search-bar svg {
+                width: 20px;
+                height: 20px;
+                fill: var(--txt3);
+                flex-shrink: 0;
+            }
+
+            .search-bar input {
+                flex: 1;
+                background: none;
+                border: none;
+                outline: none;
+                font-size: 17px;
+                font-weight: 500;
+                color: var(--txt);
+            }
+
+            .search-bar input::placeholder {
+                color: var(--txt3);
+            }
+
+            .search-bar .xbtn {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--txt3);
+            }
+
+            .search-bar .xbtn:active {
+                background: var(--btn-h);
+            }
+
+            .search-bar .xbtn svg {
+                width: 20px;
+                height: 20px;
+                fill: currentColor;
+            }
+
+            /* ── BREADCRUMB ── */
+            #bc {
+                display: none;
+                align-items: center;
+                gap: 4px;
+                padding: 0 16px;
+                height: 36px;
+                overflow-x: auto;
+                white-space: nowrap;
+                border-bottom: 1px solid var(--line);
+                background: var(--bg1);
+            }
+
+            #bc.on {
+                display: flex;
+            }
+
+            #bc::-webkit-scrollbar {
+                display: none;
+            }
+
+            .bc-crumb {
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--txt2);
+                padding: 4px 8px;
+                border-radius: 8px;
+            }
+
+            .bc-crumb:last-child {
+                color: var(--acc);
+            }
+
+            .bc-crumb:active {
+                background: var(--btn);
+            }
+
+            .bc-sep {
+                color: var(--txt3);
+                font-size: 12px;
+            }
+
+            /* ── HOME ── */
+            .home {
+                padding: 20px 16px 12px;
+            }
+
+            /* Storage card */
+            .stor-card {
+                background: var(--btn);
+                border-radius: var(--r);
+                padding: 18px 20px;
+                margin-bottom: 26px;
+            }
+
+            .stor-head {
+                display: flex;
+                justify-content: space-between;
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--txt2);
+                margin-bottom: 12px;
+            }
+
+            .stor-val {
+                color: var(--txt);
+                font-weight: 700;
+            }
+
+            .bar-bg {
+                height: 6px;
+                background: var(--bg);
+                border-radius: 6px;
+                overflow: hidden;
+            }
+
+            .bar-fill {
+                height: 100%;
+                width: 62%;
+                border-radius: 6px;
+                background: linear-gradient(90deg, var(--acc), var(--acc2));
+                transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .stor-foot {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 8px;
+                font-size: 12px;
+                font-weight: 500;
+                color: var(--txt2);
+            }
+
+            .sec-lbl {
+                font-size: 11px;
+                font-weight: 700;
+                color: var(--txt3);
+                text-transform: uppercase;
+                letter-spacing: 0.09em;
+                margin-bottom: 12px;
+            }
+
+            /* ── QUICK TILES ──
+           Heller Button-BG (#2A2A2A), helle Schrift (#F4F0EB), voll abgerundet */
+            .tiles {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                margin-bottom: 8px;
+            }
+
+            .tile {
+                background: var(--btn);
+                /* heller als BG */
+                border-radius: var(--r);
+                /* schön abgerundet */
+                padding: 18px 16px 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                text-align: left;
+                transition:
+                    background 0.12s,
+                    transform 0.1s;
+                border: 1px solid rgba(255, 255, 255, 0.04);
+            }
+
+            .tile:active {
+                background: var(--btn-h);
+                transform: scale(0.97);
+            }
+
+            .tile-icon {
+                width: 46px;
+                height: 46px;
+                border-radius: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .tile-icon svg {
+                width: 22px;
+                height: 22px;
+                fill: #fff;
+            }
+
+            .tile-label {
+                font-size: 15px;
+                font-weight: 700;
+                color: var(--txt);
+            }
+
+            /* hell */
+            .tile-sub {
+                font-size: 12px;
+                font-weight: 400;
+                color: var(--txt2);
+                margin-top: 2px;
+            }
+
+            /* tile icon colors */
+            .ic-dl {
+                background: linear-gradient(135deg, #3a8c6a, #2a6c50);
+            }
+
+            .ic-dcim {
+                background: linear-gradient(135deg, #4a7eb8, #2a5e98);
+            }
+
+            .ic-doc {
+                background: linear-gradient(135deg, #b87830, #986010);
+            }
+
+            .ic-music {
+                background: linear-gradient(135deg, #884aaa, #662a88);
+            }
+
+            .ic-stor {
+                background: linear-gradient(135deg, #4a8888, #2a6868);
+            }
+
+            .ic-tsh {
+                background: linear-gradient(135deg, #484848, #282828);
+            }
+
+            /* ── FILE LIST ── */
+            .fscreen {
+                display: none;
+                padding-bottom: 8px;
+            }
+
+            .fscreen.on {
+                display: block;
+            }
+
+            .fitem {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                padding: 13px 16px;
+                width: 100%;
+                text-align: left;
+                background: none;
+                position: relative;
+                transition: background 0.1s;
+                user-select: none;
+                -webkit-user-select: none;
+            }
+
+            .fitem::after {
+                content: "";
+                position: absolute;
+                bottom: 0;
+                left: 74px;
+                right: 16px;
+                height: 1px;
+                background: var(--line);
+            }
+
+            .fitem:last-child::after {
+                display: none;
+            }
+
+            .fitem:active {
+                background: var(--btn);
+            }
+
+            .ficon {
+                width: 46px;
+                height: 46px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+
+            .ficon svg {
+                width: 22px;
+                height: 22px;
+                fill: #fff;
+            }
+
+            .fi-dir {
+                background: linear-gradient(135deg, #c09040, #906010);
+            }
+
+            .fi-img {
+                background: linear-gradient(135deg, #4a8cb4, #2a6c94);
+            }
+
+            .fi-vid {
+                background: linear-gradient(135deg, #c04868, #a02848);
+            }
+
+            .fi-aud {
+                background: linear-gradient(135deg, #7848a8, #582888);
+            }
+
+            .fi-pdf {
+                background: linear-gradient(135deg, #c04030, #a02010);
+            }
+
+            .fi-doc {
+                background: linear-gradient(135deg, #3a6cb8, #1a4c98);
+            }
+
+            .fi-zip {
+                background: linear-gradient(135deg, #508840, #307020);
+            }
+
+            .fi-code {
+                background: linear-gradient(135deg, #408888, #206868);
+            }
+
+            .fi-apk {
+                background: linear-gradient(135deg, #3a8c60, #1a6c40);
+            }
+
+            .fi-file {
+                background: linear-gradient(135deg, #585858, #383838);
+            }
+
+            .fmeta {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .fname {
+                font-size: 15px;
+                font-weight: 600;
+                color: var(--txt);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .fsub {
+                font-size: 12px;
+                font-weight: 400;
+                color: var(--txt2);
+                margin-top: 3px;
+            }
+
+            /* ── MULTI-SELECT ── */
+            .fsel-chk {
+                display: none;
+                width: 22px;
+                height: 22px;
+                flex-shrink: 0;
+                border-radius: 50%;
+                border: 2px solid var(--txt3);
+                align-items: center;
+                justify-content: center;
+                transition:
+                    background 0.15s,
+                    border-color 0.15s;
+                margin-right: -4px;
+            }
+
+            body.multi-mode .fsel-chk {
+                display: flex;
+            }
+
+            body.multi-mode .fitem.sel {
+                background: var(--acc-d);
+            }
+
+            body.multi-mode .fitem.sel .fsel-chk {
+                background: var(--acc);
+                border-color: var(--acc);
+                color: #000;
+            }
+
+            .fsel-chk svg {
+                width: 14px;
+                height: 14px;
+                fill: currentColor;
+                opacity: 0;
+            }
+
+            body.multi-mode .fitem.sel .fsel-chk svg {
+                opacity: 1;
+            }
+
+            /* ── MULTI ACTION BAR ── */
+            .multi-bar {
+                position: fixed;
+                bottom: var(--nav);
+                left: 0;
+                right: 0;
+                background: var(--bg1);
+                border-top: 1px solid var(--line);
+                display: flex;
+                align-items: center;
+                padding: 10px 16px;
+                gap: 10px;
+                transform: translateY(100%);
+                transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+                z-index: 40;
+            }
+
+            .multi-bar.on {
+                transform: translateY(0);
+            }
+
+            body.multi-mode #app {
+                padding-bottom: calc(var(--nav) + 56px);
+            }
+
+            .multi-count {
+                flex: 1;
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--txt2);
+            }
+
+            .multi-act {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                flex-shrink: 0;
+            }
+
+            .multi-act.mv {
+                background: var(--btn);
+                color: var(--txt);
+            }
+
+            .multi-act.sh {
+                background: var(--btn);
+                color: var(--txt);
+            }
+
+            .multi-act.del {
+                background: var(--red-d);
+                color: var(--red);
+            }
+
+            .multi-act svg {
+                width: 22px;
+                height: 22px;
+                fill: currentColor;
+            }
+
+            /* ── MOVE SHEET ── */
+            .move-bar {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                padding: 0 8px 12px;
+            }
+
+            .move-title {
+                flex: 1;
+                font-size: 16px;
+                font-weight: 700;
+                color: var(--txt);
+                padding-left: 8px;
+            }
+
+            .move-dir-item {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                padding: 12px 16px;
+                width: 100%;
+            }
+
+            .move-dir-item + .move-dir-item {
+                border-top: 1px solid var(--line);
+            }
+
+            .move-dir-item:active {
+                background: var(--btn);
+            }
+
+            .move-dir-item .fname {
+                flex: 1;
+            }
+
+            .move-confirm {
+                padding: 16px;
+                border-top: 1px solid var(--line);
+            }
+
+            .move-dest {
+                font-size: 13px;
+                color: var(--txt2);
+                margin-bottom: 12px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            /* ── EMPTY ── */
+            .empty {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 35vh;
+                gap: 14px;
+                color: var(--txt3);
+            }
+
+            .empty svg {
+                width: 56px;
+                height: 56px;
+                fill: var(--btn-h);
+            }
+
+            .empty p {
+                font-size: 16px;
+                font-weight: 600;
+            }
+
+            /* ── BOTTOM NAV ── */
+            .nav {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: var(--nav);
+                background: var(--bg1);
+                border-top: 1px solid var(--line);
+                display: flex;
+                z-index: 90;
+                padding-bottom: env(safe-area-inset-bottom, 0px);
+            }
+
+            .nav-btn {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+                color: var(--txt3);
+                transition: color 0.15s;
+            }
+
+            .nav-btn svg {
+                width: 24px;
+                height: 24px;
+                fill: currentColor;
+            }
+
+            .nav-btn span {
+                font-size: 11px;
+                font-weight: 700;
+            }
+
+            .nav-btn.on {
+                color: var(--acc);
+            }
+
+            /* ── SHEET BACKGROUND ── */
+            .sheet-bg {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.65);
+                z-index: 200;
+                display: none;
+                backdrop-filter: blur(4px);
+            }
+
+            .sheet-bg.on {
+                display: block;
+            }
+
+            /* ── BOTTOM SHEET ── */
+            .sheet {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: var(--bg1);
+                border-radius: 22px 22px 0 0;
+                border-top: 1px solid var(--line);
+                z-index: 201;
+                transform: translateY(100%);
+                transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+                padding-bottom: calc(16px + env(safe-area-inset-bottom));
+            }
+
+            .sheet.on {
+                transform: translateY(0);
+            }
+
+            .knob {
+                width: 36px;
+                height: 4px;
+                background: var(--btn-h);
+                border-radius: 4px;
+                margin: 12px auto 0;
+            }
+
+            /* ── CONTEXT SHEET ── */
+            .ctx-name {
+                font-size: 15px;
+                font-weight: 700;
+                color: var(--txt);
+                padding: 16px 20px 12px;
+                border-bottom: 1px solid var(--line);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .ctx-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 8px;
+                padding: 14px 12px 6px;
+            }
+
+            /* Context buttons: heller BG, helle Schrift, stark abgerundet */
+            .ctx-btn {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+                padding: 16px 6px 14px;
+                background: var(--btn);
+                /* heller Hintergrund */
+                border-radius: var(--r);
+                /* maximale Rundung */
+                font-size: 12px;
+                font-weight: 700;
+                color: var(--txt);
+                /* helle Schrift */
+                transition:
+                    background 0.12s,
+                    transform 0.1s;
+                border: 1px solid rgba(255, 255, 255, 0.04);
+            }
+
+            .ctx-btn:active {
+                background: var(--btn-h);
+                transform: scale(0.95);
+            }
+
+            .ctx-btn svg {
+                width: 24px;
+                height: 24px;
+                fill: var(--acc);
+            }
+
+            .ctx-btn.red {
+                color: var(--red);
+            }
+
+            .ctx-btn.red svg {
+                fill: var(--red);
+            }
+
+            /* ── SORT SHEET ── */
+            .sort-title {
+                font-size: 17px;
+                font-weight: 700;
+                padding: 18px 20px 10px;
+                color: var(--txt);
+            }
+
+            .sort-opt {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                padding: 16px 20px;
+                font-size: 15px;
+                font-weight: 600;
+                color: var(--txt2);
+                transition: background 0.1s;
+            }
+
+            .sort-opt:active {
+                background: var(--btn);
+            }
+
+            .sort-opt svg {
+                width: 20px;
+                height: 20px;
+                fill: var(--txt3);
+            }
+
+            .chk {
+                margin-left: auto;
+                width: 20px;
+                height: 20px;
+                fill: var(--acc);
+                display: none;
+            }
+
+            .sort-opt.on {
+                color: var(--acc);
+            }
+
+            .sort-opt.on svg:first-of-type {
+                fill: var(--acc);
+            }
+
+            .sort-opt.on .chk {
+                display: block;
+            }
+
+            /* ── SETTINGS SHEET ── */
+            .set-title {
+                font-size: 17px;
+                font-weight: 700;
+                padding: 18px 20px 10px;
+                color: var(--txt);
+            }
+
+            .set-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 15px 20px;
+                gap: 16px;
+            }
+
+            .set-row + .set-row {
+                border-top: 1px solid var(--line);
+            }
+
+            .si {
+                flex: 1;
+            }
+
+            .st {
+                font-size: 15px;
+                font-weight: 600;
+                color: var(--txt);
+            }
+
+            .ss {
+                font-size: 12px;
+                color: var(--txt2);
+                margin-top: 3px;
+            }
+
+            /* Toggle switch */
+            .tgl {
+                position: relative;
+                width: 50px;
+                height: 28px;
+                flex-shrink: 0;
+            }
+
+            .tgl input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+            .tgl-sl {
+                position: absolute;
+                inset: 0;
+                background: var(--btn-h);
+                border-radius: 28px;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+
+            .tgl-sl::before {
+                content: "";
+                position: absolute;
+                width: 22px;
+                height: 22px;
+                left: 3px;
+                top: 3px;
+                background: var(--txt3);
+                border-radius: 50%;
+                transition:
+                    transform 0.2s,
+                    background 0.2s;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+            }
+
+            .tgl input:checked + .tgl-sl {
+                background: var(--acc);
+            }
+
+            .tgl input:checked + .tgl-sl::before {
+                transform: translateX(22px);
+                background: #fff;
+            }
+
+            /* Settings action button — abgerundet, heller BG, helle Schrift */
+            .set-act {
+                padding: 11px 20px;
+                border-radius: var(--rs);
+                font-size: 13px;
+                font-weight: 700;
+                background: var(--btn);
+                color: var(--txt2);
+                /* heller BG */
+                border: 1px solid rgba(255, 255, 255, 0.04);
+                transition: background 0.12s;
+            }
+
+            .set-act:active {
+                background: var(--btn-h);
+            }
+
+            .set-act.red {
+                background: var(--red-d);
+                color: var(--red);
+            }
+
+            /* ── TRASH SHEET ── */
+            .trash-bar {
+                display: flex;
+                gap: 8px;
+                padding: 10px 12px;
+                border-bottom: 1px solid var(--line);
+            }
+
+            /* Trash action buttons — abgerundet, heller BG, helle Schrift */
+            .tr-btn {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                padding: 13px;
+                background: var(--btn);
+                /* heller */
+                border-radius: var(--r);
+                /* abgerundet */
+                font-size: 13px;
+                font-weight: 700;
+                color: var(--txt);
+                /* helle Schrift */
+                border: 1px solid rgba(255, 255, 255, 0.04);
+                transition: background 0.12s;
+            }
+
+            .tr-btn:active {
+                background: var(--btn-h);
+            }
+
+            .tr-btn svg {
+                width: 18px;
+                height: 18px;
+                fill: currentColor;
+            }
+
+            .tr-btn.red {
+                background: var(--red-d);
+                color: var(--red);
+            }
+
+            .trash-list {
+                max-height: 50vh;
+                overflow-y: auto;
+            }
+
+            .trash-list::-webkit-scrollbar {
+                display: none;
+            }
+
+            /* ── DIALOGS ── */
+            .dlg-bg {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.75);
+                z-index: 300;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                backdrop-filter: blur(5px);
+            }
+
+            .dlg-bg.on {
+                display: flex;
+            }
+
+            .dlg {
+                background: var(--bg1);
+                border: 1px solid var(--line);
+                border-radius: var(--r);
+                padding: 24px;
+                width: calc(100% - 48px);
+                max-width: 320px;
+                animation: pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+            }
+
+            @keyframes pop {
+                from {
+                    opacity: 0;
+                    transform: scale(0.88);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+
+            .dlg-title {
+                font-size: 17px;
+                font-weight: 700;
+                color: var(--txt);
+                margin-bottom: 16px;
+            }
+
+            .dlg-input {
+                width: 100%;
+                padding: 13px 16px;
+                background: var(--btn);
+                border: 1.5px solid var(--line);
+                border-radius: var(--rs);
+                font-size: 15px;
+                font-weight: 500;
+                color: var(--txt);
+                outline: none;
+                transition: border-color 0.15s;
+            }
+
+            .dlg-input:focus {
+                border-color: var(--acc);
+            }
+
+            .dlg-row {
+                display: flex;
+                gap: 10px;
+                margin-top: 18px;
+            }
+
+            /* Dialog buttons — abgerundet, heller BG, helle Schrift */
+            .dlg-btn {
+                flex: 1;
+                padding: 14px;
+                border-radius: var(--rs);
+                /* abgerundet */
+                font-size: 15px;
+                font-weight: 700;
+                background: var(--btn);
+                /* heller Hintergrund */
+                color: var(--txt2);
+                /* helle Schrift */
+                border: 1px solid rgba(255, 255, 255, 0.04);
+                transition: background 0.12s;
+            }
+
+            .dlg-btn:active {
+                background: var(--btn-h);
+            }
+
+            .dlg-btn.ok {
+                background: var(--acc);
+                color: #131313;
+                border: none;
+            }
+
+            .dlg-btn.ok:active {
+                background: var(--acc2);
+            }
+
+            /* ── TOAST ── */
+            .toast {
+                position: fixed;
+                bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+                left: 50%;
+                transform: translateX(-50%) translateY(12px);
+                background: var(--btn-h);
+                color: var(--txt);
+                padding: 11px 22px;
+                border-radius: 24px;
+                font-size: 14px;
+                font-weight: 600;
+                white-space: nowrap;
+                z-index: 999;
+                opacity: 0;
+                pointer-events: none;
+                border: 1px solid var(--line);
+                transition:
+                    opacity 0.2s,
+                    transform 0.2s;
+            }
+
+            .toast.on {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+
+            /* ── ANIMATIONS ── */
+            @keyframes fadeUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(8px);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .fitem {
+                animation: fadeUp 0.15s ease both;
+            }
+
+            .tile {
+                animation: fadeUp 0.18s ease both;
+            }
+
+            /* ── PLAYER BAR ── */
+            .player-bar {
+                position: fixed;
+                bottom: var(--nav);
+                left: 0;
+                right: 0;
+                background: var(--bg1);
+                border-top: 1px solid var(--line);
+                display: flex;
+                align-items: center;
+                padding: 10px 12px;
+                gap: 7px;
+                transform: translateY(100%);
+                transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+                z-index: 41;
+                user-select: none;
+                -webkit-user-select: none;
+            }
+
+            .player-bar.on {
+                transform: translateY(0);
+            }
+
+            body.player-mode #app {
+                padding-bottom: calc(var(--nav) + 58px);
+            }
+
+            body.player-mode .multi-bar.on {
+                bottom: calc(var(--nav) + 58px);
+            }
+
+            body.player-mode.multi-mode #app {
+                padding-bottom: calc(var(--nav) + 116px);
+            }
+
+            .player-title {
+                flex: 1;
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--txt);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                min-width: 0;
+                user-select: none;
+                -webkit-user-select: none;
+            }
+
+            .player-btn {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-width: 46px;
+                height: 44px;
+                border-radius: var(--rs);
+                background: var(--btn);
+                color: var(--txt);
+                gap: 2px;
+                border: 1px solid rgba(255, 255, 255, 0.04);
+                padding: 0 6px;
+                transition:
+                    background 0.12s,
+                    transform 0.1s;
+                flex-shrink: 0;
+            }
+
+            .player-btn:active {
+                background: var(--btn-h);
+                transform: scale(0.95);
+            }
+
+            .player-btn .pb-ic {
+                font-size: 14px;
+                font-weight: 800;
+                line-height: 1;
+                color: var(--acc);
+            }
+
+            .player-btn .pb-lb {
+                font-size: 9px;
+                font-weight: 700;
+                color: var(--txt2);
+                line-height: 1;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
+
+            /* ── PLAYING MARK ── */
+            .fitem.playing {
+                background: var(--acc-d);
+            }
+
+            .fitem.playing .fname {
+                color: var(--acc);
+            }
+
+            .fitem.playing .ficon {
+                box-shadow: 0 0 0 2px var(--acc);
+            }
+
+            .fitem.playing.paused {
+                background: rgba(232, 168, 48, 0.06);
+            }
+
+            .fitem.playing.paused .fname {
+                color: var(--txt2);
+            }
+
+            .fitem.playing.paused .ficon {
+                box-shadow: 0 0 0 2px var(--txt3);
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- TOP BAR -->
+        <div id="pullRefresher">
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                />
+            </svg>
+        </div>
+
+        <div class="topbar" id="topbar">
+            <button class="tb-btn" id="btnSelectAll" style="display: none" onclick="toggleSelectAll()">
+                <div class="sel-all-circle">
+                    <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
+                </div>
+            </button>
+            <button class="tb-btn" id="btnBack" style="display: none" onclick="goBack()">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                </svg>
+            </button>
+            <div class="topbar-title" id="topTitle" onclick="topTitleTap()">Dateien</div>
+            <button class="tb-btn" id="btnSearch" style="display: none" onclick="openSearch()">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                    />
+                </svg>
+            </button>
+            <button class="tb-btn" id="btnSort" style="display: none" onclick="openSort()">
+                <svg viewBox="0 0 24 24">
+                    <path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z" />
+                </svg>
+            </button>
+            <button class="tb-btn" id="btnMulti" style="display: none" onclick="toggleMultiMode()">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M3 5h2V3c-1.1 0-2 .9-2 2zm0 8h2v-2H3v2zm4 8h2v-2H7v2zM3 9h2V7H3v2zm10-6h-2v2h2V3zm6 0v2h2c0-1.1-.9-2-2-2zM5 21v-2H3c0 1.1.9 2 2 2zm-2-4h2v-2H3v2zM9 3H7v2h2V3zm2 18h2v-2h-2v2zm8-8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2zm0-12h2V7h-2v2zm0 8h2v-2h-2v2zm-4 4h2v-2h-2v2zm0-16h2V3h-2v2z"
+                    />
+                </svg>
+            </button>
+        </div>
+
+        <!-- SEARCH -->
+        <div class="search-bar" id="searchBar">
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                />
+            </svg>
+            <input
+                id="searchInput"
+                placeholder="Suchen …"
+                onkeydown="if (event.key === 'Enter') doSearch();"
+                autocomplete="off"
+            />
+            <button class="xbtn" style="color: var(--acc)" onclick="doSearch()">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+                </svg>
+            </button>
+            <button class="xbtn" onclick="closeSearch()">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                    />
+                </svg>
+            </button>
+        </div>
+
+        <!-- BREADCRUMB -->
+        <div id="bc"></div>
+
+        <!-- SCROLL AREA -->
+        <div id="app">
+            <!-- HOME -->
+            <div class="home" id="homeScreen">
+                <div class="stor-card">
+                    <div class="stor-head">
+                        <span>Interner Speicher</span>
+                        <span class="stor-val">37,4 GB</span>
+                    </div>
+                    <div class="bar-bg">
+                        <div class="bar-fill"></div>
+                    </div>
+                    <div class="stor-foot">
+                        <span>23,2 GB belegt</span>
+                        <span>14,2 GB frei</span>
+                    </div>
+                </div>
+
+                <div class="sec-lbl">Schnellzugriff</div>
+                <div class="tiles">
+                    <button class="tile" style="animation-delay: 0.03s" onclick="nav('/sdcard/Download', 'Downloads')">
+                        <div class="tile-icon ic-dl">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="tile-label">Downloads</div>
+                            <div class="tile-sub">Zuletzt genutzt</div>
+                        </div>
+                    </button>
+                    <button class="tile" style="animation-delay: 0.06s" onclick="nav('/sdcard/DCIM', 'Kamera')">
+                        <div class="tile-icon ic-dcim">
+                            <svg viewBox="0 0 24 24">
+                                <path
+                                    d="M12 15.2A3.2 3.2 0 0 1 8.8 12 3.2 3.2 0 0 1 12 8.8 3.2 3.2 0 0 1 15.2 12 3.2 3.2 0 0 1 12 15.2M20 4h-3.17L15 2H9L7.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"
+                                />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="tile-label">Kamera</div>
+                            <div class="tile-sub">Fotos &amp; Videos</div>
+                        </div>
+                    </button>
+                    <button class="tile" style="animation-delay: 0.09s" onclick="nav('/sdcard/Documents', 'Dokumente')">
+                        <div class="tile-icon ic-doc">
+                            <svg viewBox="0 0 24 24">
+                                <path
+                                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"
+                                />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="tile-label">Dokumente</div>
+                            <div class="tile-sub">PDF, Word …</div>
+                        </div>
+                    </button>
+                    <button class="tile" style="animation-delay: 0.12s" onclick="navMusic()">
+                        <div class="tile-icon ic-music">
+                            <svg viewBox="0 0 24 24">
+                                <path
+                                    d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"
+                                />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="tile-label">Musik</div>
+                            <div class="tile-sub">MP3, FLAC …</div>
+                        </div>
+                    </button>
+                    <button class="tile" style="animation-delay: 0.15s" onclick="navAllFiles()">
+                        <div class="tile-icon ic-stor">
+                            <svg viewBox="0 0 24 24">
+                                <path
+                                    d="M2 20h20v-4H2v4zm2-3h2v2H4v-2zM2 4v4h20V4H2zm4 3H4V5h2v2zm-4 7h20v-4H2v4zm2-3h2v2H4v-2z"
+                                />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="tile-label">Alle Dateien</div>
+                            <div class="tile-sub">Gesamter Speicher</div>
+                        </div>
+                    </button>
+                    <button class="tile" style="animation-delay: 0.18s" onclick="openTrash()">
+                        <div class="tile-icon ic-tsh">
+                            <svg viewBox="0 0 24 24">
+                                <path
+                                    d="M9 3v1H4v2h1v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6h1V4h-5V3H9zm0 5h2v9H9V8zm4 0h2v9h-2V8z"
+                                />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="tile-label">Papierkorb</div>
+                            <div class="tile-sub" id="trSub">Leer</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- FILE SCREEN -->
+            <div class="fscreen" id="fileScreen">
+                <div id="fileList"></div>
+                <div class="empty" id="emptyMsg" style="display: none">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V6h5.17l2 2H20v10z"
+                        />
+                    </svg>
+                    <p>Ordner ist leer</p>
+                </div>
+            </div>
+
+            <!-- RECENT SCREEN -->
+            <div class="fscreen" id="recentScreen">
+                <div id="recentList"></div>
+                <div class="empty" id="recentEmpty" style="display: none">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M13 3a9 9 0 1 0 0 18A9 9 0 0 0 13 3zm0 16a7 7 0 1 1 0-14 7 7 0 0 1 0 14zm.5-11H12v6l5.25 3.15.75-1.23-4.5-2.67V8z"
+                        />
+                    </svg>
+                    <p>Noch nichts geöffnet</p>
+                </div>
+            </div>
+        </div>
+        <!-- /app -->
+
+        <!-- AUDIO ELEMENT -->
+        <audio id="audioEl" preload="none"></audio>
+
+        <!-- PLAYER BAR -->
+        <div class="player-bar" id="playerBar">
+            <div
+                class="player-title"
+                id="playerTitle"
+                onclick="playerTogglePause()"
+                oncontextmenu="
+                    playerOpenFolder();
+                    return false;
+                "
+                style="cursor: pointer"
+            >
+                —
+            </div>
+            <button class="player-btn" onclick="playerPrev()">
+                <span class="pb-ic">&lt;&lt;</span>
+                <span class="pb-lb">Zur</span>
+            </button>
+            <button class="player-btn" onclick="playerVolDown()">
+                <span class="pb-ic">&#8722;</span>
+                <span class="pb-lb">Vol</span>
+            </button>
+            <button class="player-btn" onclick="playerVolUp()">
+                <span class="pb-ic">+</span>
+                <span class="pb-lb">Vol</span>
+            </button>
+            <button class="player-btn" onclick="playerNext()">
+                <span class="pb-ic">&gt;&gt;</span>
+                <span class="pb-lb">Vor</span>
+            </button>
+        </div>
+
+        <!-- MULTI-SELECT BAR -->
+        <div class="multi-bar" id="multiBar">
+            <span class="multi-count" id="multiCount">0 ausgewählt</span>
+            <button class="multi-act mv" onclick="openMoveDlg()" title="Verschieben">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-2 6l-4 4v-2h-4v-4h4V8l4 4z"
+                    />
+                </svg>
+            </button>
+            <button class="multi-act sh" id="btnMultiShare" onclick="multiShare()" title="Teilen">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"
+                    />
+                </svg>
+            </button>
+            <button class="multi-act del" onclick="multiDelete()" title="Löschen">
+                <svg viewBox="0 0 24 24">
+                    <path d="M9 3v1H4v2h1v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6h1V4h-5V3H9zm0 5h2v9H9V8zm4 0h2v9h-2V8z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- BOTTOM NAV -->
+        <nav class="nav">
+            <button class="nav-btn on" id="nb0" onclick="showHome()">
+                <svg viewBox="0 0 24 24">
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+                </svg>
+                <span>Start</span>
+            </button>
+            <button class="nav-btn" id="nb1" onclick="showRecent()">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M13 3a9 9 0 1 0 0 18A9 9 0 0 0 13 3zm0 16a7 7 0 1 1 0-14 7 7 0 0 1 0 14zm.5-11H12v6l5.25 3.15.75-1.23-4.5-2.67V8z"
+                    />
+                </svg>
+                <span>Zuletzt</span>
+            </button>
+            <button class="nav-btn" id="nb2" onclick="showSettings()">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.04.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+                    />
+                </svg>
+                <span>Einstellungen</span>
+            </button>
+        </nav>
+
+        <!-- CONTEXT SHEET -->
+        <div class="sheet-bg" id="ctxBg" onclick="closeCtx()"></div>
+        <div class="sheet" id="ctxSheet">
+            <div class="knob"></div>
+            <div class="ctx-name" id="ctxName"></div>
+            <div class="ctx-grid">
+                <button class="ctx-btn" onclick="ctxDo('open')">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                    Öffnen
+                </button>
+                <button class="ctx-btn" id="ctxShareBtn" onclick="ctxDo('share')">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"
+                        />
+                    </svg>
+                    Teilen
+                </button>
+                <button class="ctx-btn" onclick="ctxDo('rename')">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                        />
+                    </svg>
+                    Namen
+                </button>
+                <button class="ctx-btn" id="ctxPackBtn" onclick="ctxDo('pack')" style="display: none">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-2 10h-2v2h-2v-2h2v-2h-2v-2h2v2h2v2z"
+                        />
+                    </svg>
+                    Packen
+                </button>
+                <button class="ctx-btn red" onclick="ctxDo('delete')">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M9 3v1H4v2h1v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6h1V4h-5V3H9zm0 5h2v9H9V8zm4 0h2v9h-2V8z"
+                        />
+                    </svg>
+                    Löschen
+                </button>
+            </div>
+        </div>
+
+        <!-- SORT SHEET -->
+        <div class="sheet-bg" id="sortBg" onclick="closeSort()"></div>
+        <div class="sheet" id="sortSheet">
+            <div class="knob"></div>
+            <div class="sort-title">Sortieren</div>
+            <button class="sort-opt on" id="so-name" onclick="setSort('name')">
+                <svg viewBox="0 0 24 24">
+                    <path d="M9.3 12l-4.3 5h10l-4.3-5H9.3zM12 2L6 8h12L12 2zm0 20l6-6H6l6 6z" />
+                </svg>
+                Name
+                <svg class="chk" viewBox="0 0 24 24">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                </svg>
+            </button>
+            <button class="sort-opt" id="so-date" onclick="setSort('date')">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"
+                    />
+                </svg>
+                Datum
+                <svg class="chk" viewBox="0 0 24 24">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                </svg>
+            </button>
+            <button class="sort-opt" id="so-size" onclick="setSort('size')">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M21 6.5l-4-4-4 4 1.5 1.5 1.5-1.5V15h2V6.5l1.5 1.5L21 6.5zM3 17.5l4 4 4-4-1.5-1.5-1.5 1.5V9H6v8.5l-1.5-1.5L3 17.5z"
+                    />
+                </svg>
+                Größe
+                <svg class="chk" viewBox="0 0 24 24">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                </svg>
+            </button>
+            <button class="sort-opt" id="so-type" onclick="setSort('type')">
+                <svg viewBox="0 0 24 24">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z" />
+                </svg>
+                Typ
+                <svg class="chk" viewBox="0 0 24 24">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                </svg>
+            </button>
+            <button class="sort-opt" id="so-random" style="display: none" onclick="setSort('random')">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
+                    />
+                </svg>
+                Zufall
+                <svg class="chk" viewBox="0 0 24 24">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- SETTINGS SHEET -->
+        <div class="sheet-bg" id="setBg" onclick="closeSettings()"></div>
+        <div class="sheet" id="setSheet">
+            <div class="knob"></div>
+            <div class="set-title">Einstellungen</div>
+            <div class="set-row">
+                <div class="si">
+                    <div class="st">Papierkorb</div>
+                    <div class="ss">Gelöschtes zuerst in den Papierkorb</div>
+                </div>
+                <label class="tgl">
+                    <input type="checkbox" id="togTrash" checked />
+                    <span class="tgl-sl"></span>
+                </label>
+            </div>
+            <div class="set-row">
+                <div class="si">
+                    <div class="st">Versteckte Dateien</div>
+                    <div class="ss">Dateien mit Punkt anzeigen</div>
+                </div>
+                <label class="tgl">
+                    <input type="checkbox" id="togHidden" />
+                    <span class="tgl-sl"></span>
+                </label>
+            </div>
+            <div class="set-row">
+                <div class="si">
+                    <div class="st">Dateigröße</div>
+                    <div class="ss">Größe unter Dateinamen einblenden</div>
+                </div>
+                <label class="tgl">
+                    <input type="checkbox" id="togSize" checked />
+                    <span class="tgl-sl"></span>
+                </label>
+            </div>
+            <div class="set-row" style="border-top: 1px solid var(--line)">
+                <div class="si">
+                    <div class="st">Papierkorb leeren</div>
+                    <div class="ss" id="setTrCnt">Leer</div>
+                </div>
+                <button class="set-act red" onclick="emptyTrash()">Leeren</button>
+            </div>
+            <div class="set-row">
+                <div class="si">
+                    <div class="st">Zuletzt leeren</div>
+                    <div class="ss">Liste zuletzt geöffneter Dateien leeren</div>
+                </div>
+                <button class="set-act red" onclick="clearRecent()">Leeren</button>
+            </div>
+        </div>
+
+        <!-- TRASH SHEET -->
+        <div class="sheet-bg" id="trashBg" onclick="closeTrash()"></div>
+        <div class="sheet" id="trashSheet" style="max-height: 85vh">
+            <div class="knob"></div>
+            <div class="trash-bar">
+                <button class="tr-btn" onclick="restoreAll()">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18z"
+                        />
+                    </svg>
+                    Alle zurück
+                </button>
+                <button class="tr-btn red" onclick="emptyTrash()">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M9 3v1H4v2h1v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6h1V4h-5V3H9z" />
+                    </svg>
+                    Alle löschen
+                </button>
+            </div>
+            <div class="trash-list" id="trashList"></div>
+            <div class="empty" id="trashEmpty" style="display: none; padding: 24px 0">
+                <svg viewBox="0 0 24 24">
+                    <path d="M9 3v1H4v2h1v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6h1V4h-5V3H9z" />
+                </svg>
+                <p>Papierkorb ist leer</p>
+            </div>
+        </div>
+
+        <!-- MOVE DESTINATION SHEET -->
+        <div class="sheet-bg" id="moveBg" onclick="closeMoveDlg()"></div>
+        <div class="sheet" id="moveSheet" style="max-height: 85vh">
+            <div class="knob"></div>
+            <div class="move-bar">
+                <button class="tb-btn" id="moveBtnBack" style="display: none" onclick="moveDirUp()">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                    </svg>
+                </button>
+                <div class="move-title" id="moveTitle">Ziel w\u00e4hlen</div>
+            </div>
+            <div id="moveDirList" style="overflow-y: auto; max-height: 50vh"></div>
+            <div class="move-confirm">
+                <div class="move-dest" id="moveDest">/sdcard</div>
+                <button class="dlg-btn ok" onclick="doMultiMove()">Hierher verschieben</button>
+            </div>
+        </div>
+
+        <!-- RENAME DIALOG -->
+        <div class="dlg-bg" id="renameDlg">
+            <div class="dlg">
+                <div class="dlg-title">Namen</div>
+                <input class="dlg-input" id="renameIn" type="text" />
+                <div class="dlg-row">
+                    <button class="dlg-btn" onclick="closeRename()">Abbrechen</button>
+                    <button class="dlg-btn ok" onclick="doRename()">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW FOLDER DIALOG -->
+        <div class="dlg-bg" id="folderDlg">
+            <div class="dlg">
+                <div class="dlg-title">Neuer Ordner</div>
+                <input class="dlg-input" id="folderIn" type="text" placeholder="Ordnername" />
+                <div class="dlg-row">
+                    <button class="dlg-btn" onclick="closeFolderDlg()">Abbrechen</button>
+                    <button class="dlg-btn ok" onclick="doCreateFolder()">Erstellen</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="toast" id="toast"></div>
+
+        <!-- ══ JAVASCRIPT ══════════════════════════════════════════ -->
+        <script>
+            const S = {
+                path: "/sdcard",
+                history: [],
+                crumbs: [],
+                files: [],
+                trashItems: [],
+                recent: [],
+                sortBy: "name",
+                trashOn: true,
+                hidden: false,
+                showSize: true,
+                ctxFile: null,
+                renameTarget: null,
+                isCap: false,
+                fromAllFiles: false,
+                multiMode: false,
+                selected: [],
+                movePath: "",
+                musicMode: false,
+                player: { path: null, name: null, dir: null, list: [], idx: -1, volume: 0.8, paused: false },
+            };
+
+            /* ── BOOT ── */
+            window.addEventListener("DOMContentLoaded", () => {
+                try {
+                    const r = JSON.parse(localStorage.getItem("fm3") || "{}");
+                    ["sortBy", "trashOn", "hidden", "showSize"].forEach((k) => {
+                        if (r[k] !== undefined) S[k] = r[k];
+                    });
+                } catch (e) {}
+                try {
+                    S.trashItems = JSON.parse(localStorage.getItem("fm3t") || "[]");
+                } catch (e) {}
+                try {
+                    S.recent = JSON.parse(localStorage.getItem("fm3r") || "[]");
+                } catch (e) {}
+                S.isCap = !!window.Capacitor?.isNativePlatform?.();
+                document.getElementById("togTrash").checked = S.trashOn;
+                document.getElementById("togHidden").checked = S.hidden;
+                document.getElementById("togSize").checked = S.showSize;
+                document.getElementById("togTrash").onchange = function () {
+                    S.trashOn = this.checked;
+                    sv();
+                    toast(this.checked ? "Papierkorb aktiv" : "Direktes Löschen aktiv");
+                };
+                document.getElementById("togHidden").onchange = function () {
+                    S.hidden = this.checked;
+                    sv();
+                    reload();
+                };
+                document.getElementById("togSize").onchange = function () {
+                    S.showSize = this.checked;
+                    sv();
+                    reload();
+                };
+                updTrSub();
+                document.getElementById("audioEl").addEventListener("ended", function () {
+                    playerNext();
+                });
+            });
+            function sv() {
+                localStorage.setItem(
+                    "fm3",
+                    JSON.stringify({ sortBy: S.sortBy, trashOn: S.trashOn, hidden: S.hidden, showSize: S.showSize }),
+                );
+                localStorage.setItem("fm3t", JSON.stringify(S.trashItems));
+                localStorage.setItem("fm3r", JSON.stringify(S.recent));
+            }
+
+            /* ── NAVIGATION ── */
+            function navAllFiles() {
+                S.fromAllFiles = true;
+                nav("/sdcard", "Alle Dateien");
+                document.getElementById("topTitle").classList.add("new-folder-mode");
+            }
+            function navMusic() {
+                S.musicMode = true;
+                nav("/sdcard/Music", "Musik");
+            }
+            function showHome() {
+                S.musicMode = false;
+                S.fromAllFiles = false;
+                document.getElementById("topTitle").classList.remove("new-folder-mode");
+                setNav(0);
+                exitMultiMode();
+                document.getElementById("homeScreen").style.display = "";
+                document.getElementById("fileScreen").classList.remove("on");
+                document.getElementById("recentScreen").classList.remove("on");
+                document.getElementById("topTitle").textContent = "Dateien";
+                document.getElementById("btnBack").style.display = "none";
+                document.getElementById("btnSort").style.display = "none";
+                document.getElementById("btnSearch").style.display = "none";
+                document.getElementById("btnMulti").style.display = "none";
+                closeSearch();
+                hideBc();
+                S.history = [];
+                S.crumbs = [];
+            }
+            function nav(path, title) {
+                closeAllSheets();
+                exitMultiMode();
+                S.history.push({ path: S.path, title: document.getElementById("topTitle").textContent });
+                S.crumbs.push({ path, title });
+                S.path = path;
+                document.getElementById("homeScreen").style.display = "none";
+                document.getElementById("fileScreen").classList.add("on");
+                document.getElementById("recentScreen").classList.remove("on");
+                document.getElementById("topTitle").textContent = title;
+                document.getElementById("btnBack").style.display = "flex";
+                document.getElementById("btnSort").style.display = "flex";
+                document.getElementById("btnSearch").style.display = "flex";
+                document.getElementById("btnMulti").style.display = "flex";
+                setNav(0);
+                renderBc();
+                loadDir(path);
+            }
+            function goBack() {
+                exitMultiMode();
+                if (!S.history.length) {
+                    showHome();
+                    return;
+                }
+                const p = S.history.pop();
+                S.crumbs.pop();
+                S.path = p.path;
+                if (!S.history.length) {
+                    showHome();
+                    return;
+                }
+                document.getElementById("topTitle").textContent = p.title;
+                renderBc();
+                loadDir(p.path);
+            }
+            function renderBc() {
+                const bc = document.getElementById("bc");
+                if (!S.crumbs.length) {
+                    hideBc();
+                    return;
+                }
+                bc.innerHTML = S.crumbs
+                    .map(
+                        (c, i) => `
+            <span class="bc-crumb" onclick="bcTap(${i})">${esc(c.title)}</span>
+            ${i < S.crumbs.length - 1 ? '<span class="bc-sep">›</span>' : ""}
+          `,
+                    )
+                    .join("");
+                bc.classList.add("on");
+                document.getElementById("app").style.paddingTop = "calc(var(--top) + 36px)";
+            }
+            function hideBc() {
+                document.getElementById("bc").classList.remove("on");
+                document.getElementById("app").style.paddingTop = "var(--top)";
+            }
+            function bcTap(i) {
+                if (S.fromAllFiles) {
+                    const t = S.crumbs[i];
+                    if (S.path !== t.path) {
+                        S.crumbs = S.crumbs.slice(0, i + 1);
+                        S.history = S.history.slice(0, i);
+                        S.path = t.path;
+                        document.getElementById("topTitle").textContent = t.title;
+                        renderBc();
+                        loadDir(t.path);
+                    }
+                    openFolderDlg();
+                } else {
+                    jumpBc(i);
+                }
+            }
+            function topTitleTap() {
+                if (S.fromAllFiles) openFolderDlg();
+            }
+            function jumpBc(i) {
+                const t = S.crumbs[i];
+                S.crumbs = S.crumbs.slice(0, i + 1);
+                S.history = S.history.slice(0, i);
+                S.path = t.path;
+                document.getElementById("topTitle").textContent = t.title;
+                renderBc();
+                loadDir(t.path);
+            }
+            function showRecent() {
+                setNav(1);
+                exitMultiMode();
+                document.getElementById("homeScreen").style.display = "none";
+                document.getElementById("fileScreen").classList.remove("on");
+                document.getElementById("recentScreen").classList.add("on");
+                document.getElementById("topTitle").textContent = "Zuletzt geöffnet";
+                document.getElementById("btnBack").style.display = "none";
+                document.getElementById("btnSort").style.display = "none";
+                document.getElementById("btnMulti").style.display = "none";
+                hideBc();
+                renderRecent();
+            }
+            function setNav(i) {
+                document.querySelectorAll(".nav-btn").forEach((b, j) => b.classList.toggle("on", j === i));
+            }
+
+            /* ── LOAD DIR ── */
+            async function loadDir(path) {
+                const L = document.getElementById("fileList"),
+                    E = document.getElementById("emptyMsg");
+                L.innerHTML =
+                    '<div style="padding:40px;text-align:center;color:var(--txt3);font-weight:600">Lädt …</div>';
+                E.style.display = "none";
+                let entries = S.isCap ? await capReadDir(path) : demoFiles(path);
+                if (!S.hidden) entries = entries.filter((e) => !e.name.startsWith("."));
+                entries = sortArr(entries);
+                S.files = entries;
+                renderList(entries, L, E);
+            }
+            async function capReadDir(path) {
+                try {
+                    const r = await window.Capacitor.Plugins.Filesystem.readdir({ path });
+                    return r.files.map((f) => ({
+                        name: typeof f === "string" ? f : f.name,
+                        type:
+                            typeof f === "object" && f.type === "directory"
+                                ? "dir"
+                                : gt(typeof f === "string" ? f : f.name),
+                        size: typeof f === "object" ? f.size || 0 : 0,
+                        mtime: typeof f === "object" ? f.mtime : Date.now(),
+                    }));
+                } catch (e) {
+                    return [];
+                }
+            }
+            function markPlayingInList(entries) {
+                if (!S.player.path) return;
+                entries.forEach(function (f, i) {
+                    var d = f.dir || S.path;
+                    if (d + "/" + f.name === S.player.path) {
+                        var el = document.getElementById("fi_" + i);
+                        if (el) {
+                            el.classList.add("playing");
+                            if (S._scrollToPlaying) {
+                                S._scrollToPlaying = false;
+                                setTimeout(function () {
+                                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                                }, 120);
+                            }
+                        }
+                    }
+                });
+            }
+            function renderList(entries, L, E) {
+                if (!entries.length) {
+                    L.innerHTML = "";
+                    E.style.display = "flex";
+                    return;
+                }
+                E.style.display = "none";
+                L.innerHTML = entries.map((f, i) => itemHTML(f, i)).join("");
+                markPlayingInList(entries);
+            }
+            function itemHTML(f, i) {
+                const d = Math.min(i * 0.025, 0.25);
+                // Always pass dir as 3rd arg (empty string when absent) so idx is reliably the 4th arg
+                const dirArg = f.dir ? `,'${eq(f.dir)}'` : ",''"; //  never empty – keeps idx at position 4
+                const sub = f.dir
+                    ? `<div class="fsub">${esc(f.dir)}</div>`
+                    : S.showSize
+                      ? `<div class="fsub">${fileMeta(f)}</div>`
+                      : "";
+                return `<button class="fitem" id="fi_${i}" style="animation-delay:${d}s"
+            onclick="onTap('${eq(f.name)}','${f.type}'${dirArg},${i})"
+            oncontextmenu="openCtx('${eq(f.name)}','${f.type}'${dirArg});return false">
+            <div class="fsel-chk"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+            <div class="ficon ${fc(f)}">${fi(f)}</div>
+            <div class="fmeta"><div class="fname">${esc(f.name)}</div>${sub}</div>
+          </button>`;
+            }
+            function onTap(name, type, dir, idx) {
+                if (S.multiMode) {
+                    toggleSelect(name, type, dir, idx);
+                    return;
+                }
+                const d = dir || S.path;
+                if (type === "dir") {
+                    nav(d + "/" + name, name);
+                    return;
+                }
+                // In-app audio playback when entered via Musik quick access
+                if (S.musicMode && type === "aud") {
+                    // Tap on currently playing song → pause/resume
+                    if (S.player.path === d + "/" + name) {
+                        playerTogglePause();
+                        return;
+                    }
+                    addRecent({ name, type, path: d + "/" + name });
+                    const audioFiles = [];
+                    (S.files || []).forEach(function (f, i) {
+                        if (gt(f.name) === "aud") audioFiles.push({ name: f.name, dir: d, fileListIdx: i });
+                    });
+                    const playIdx = audioFiles.findIndex((f) => f.name === name);
+                    playAudio(name, d, audioFiles, playIdx >= 0 ? playIdx : 0);
+                    return;
+                }
+                // ZIP: in Unterordner (Dateiname ohne .zip) entpacken
+                if (name.split(".").pop().toLowerCase() === "zip") {
+                    addRecent({ name, type, path: d + "/" + name });
+                    const folderName = name.replace(/\.zip$/i, "");
+                    extractAndToast(d + "/" + name, d + "/" + folderName);
+                    return;
+                }
+                addRecent({ name, type, path: d + "/" + name });
+                if (S.isCap && window.Capacitor.Plugins.FileOpener) {
+                    window.Capacitor.Plugins.FileOpener.open({
+                        filePath: d + "/" + name,
+                        contentType: mime(name),
+                    }).catch(() => toast("Kann nicht geöffnet werden"));
+                } else {
+                    toast("📄 " + name);
+                }
+            }
+            /* ── ZIP PACK ── */
+            async function packAndToast(folderPath, destDir, folderName) {
+                if (!S.isCap || !window.Capacitor.Plugins.ZipExtract) {
+                    toast("Packen nicht m\u00f6glich");
+                    return;
+                }
+                const zipName = folderName + ".zip";
+                const zipPath = destDir + "/" + zipName;
+                const stopAnim = toastAnimated("Packe");
+                try {
+                    await window.Capacitor.Plugins.ZipExtract.pack({
+                        srcDir: folderPath,
+                        zipPath: zipPath,
+                    });
+                    stopAnim();
+                    toast(zipName + " erstellt");
+                    reload();
+                } catch (e) {
+                    stopAnim();
+                    toast("Packen nicht m\u00f6glich");
+                }
+            }
+
+            /* ── ZIP PACK ── */
+            async function packAndToast(folderPath, destDir, folderName) {
+                if (!S.isCap || !window.Capacitor.Plugins.ZipExtract) {
+                    toast("Packen nicht m\u00f6glich");
+                    return;
+                }
+                const zipName = folderName + ".zip";
+                const zipPath = destDir + "/" + zipName;
+                const stopAnim = toastAnimated("Packe");
+                try {
+                    await window.Capacitor.Plugins.ZipExtract.pack({
+                        srcDir: folderPath,
+                        zipPath: zipPath,
+                    });
+                    stopAnim();
+                    toast(zipName + " erstellt");
+                    reload();
+                } catch (e) {
+                    stopAnim();
+                    toast("Packen nicht m\u00f6glich");
+                }
+            }
+
+            /* ── ZIP EXTRACTION ── */
+            async function extractAndToast(filePath, destDir) {
+                if (!S.isCap || !window.Capacitor.Plugins.ZipExtract) {
+                    toast("Entpacken nicht m\u00f6glich");
+                    return;
+                }
+                const stopAnim = toastAnimated("Entpacke");
+                try {
+                    try {
+                        await window.Capacitor.Plugins.Filesystem.mkdir({ path: destDir, recursive: true });
+                    } catch (e) {}
+                    const result = await window.Capacitor.Plugins.ZipExtract.extract({
+                        zipPath: filePath,
+                        destDir: destDir,
+                    });
+                    stopAnim();
+                    const count = result.count || 0;
+                    toast(count + (count === 1 ? " Datei" : " Dateien") + " entpackt");
+                    reload();
+                } catch (e) {
+                    stopAnim();
+                    toast("Entpacken nicht m\u00f6glich");
+                }
+            }
+            function reload() {
+                if (document.getElementById("fileScreen").classList.contains("on")) loadDir(S.path);
+            }
+
+            /* ── AUDIO PLAYER ── */
+            function playAudio(name, dir, list, idx) {
+                const path = dir + "/" + name;
+                const audioEl = document.getElementById("audioEl");
+
+                S.player.path = path;
+                S.player.name = name;
+                S.player.dir = dir;
+                S.player.list = list;
+                S.player.idx = idx;
+
+                if (S.isCap) {
+                    try {
+                        audioEl.src = window.Capacitor.convertFileSrc(path);
+                        audioEl.load();
+                        audioEl.volume = S.player.volume;
+                        audioEl.play().catch(function () {
+                            toast("Kann nicht abgespielt werden");
+                        });
+                    } catch (e) {
+                        toast("Kann nicht abgespielt werden");
+                    }
+                }
+
+                S.player.paused = false;
+                document.getElementById("playerTitle").textContent = name;
+                document.getElementById("playerBar").classList.add("on");
+                document.body.classList.add("player-mode");
+
+                document.querySelectorAll(".fitem.playing").forEach(function (el) {
+                    el.classList.remove("playing", "paused");
+                });
+                markPlayingInList(S.files || []);
+
+                // Media Session API – Kopfhörer- / Bluetooth-Steuerung
+                if ("mediaSession" in navigator) {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: name,
+                    });
+                    navigator.mediaSession.setActionHandler("play", function () {
+                        playerTogglePause();
+                    });
+                    navigator.mediaSession.setActionHandler("pause", function () {
+                        playerTogglePause();
+                    });
+                    navigator.mediaSession.setActionHandler("nexttrack", function () {
+                        playerNext();
+                    });
+                    navigator.mediaSession.setActionHandler("previoustrack", function () {
+                        playerPrev();
+                    });
+                }
+            }
+            function playerTogglePause() {
+                var now = Date.now();
+                if (now - (S._toggleTs || 0) < 400) return;
+                S._toggleTs = now;
+                var audioEl = document.getElementById("audioEl");
+                if (audioEl.paused) {
+                    audioEl.play().catch(function () {});
+                    S.player.paused = false;
+                    document.getElementById("playerTitle").textContent = S.player.name;
+                    document.querySelectorAll(".fitem.playing").forEach(function (el) {
+                        el.classList.remove("paused");
+                    });
+                    if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing";
+                } else {
+                    audioEl.pause();
+                    S.player.paused = true;
+                    document.getElementById("playerTitle").textContent = "⏸ " + S.player.name;
+                    document.querySelectorAll(".fitem.playing").forEach(function (el) {
+                        el.classList.add("paused");
+                    });
+                    if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "paused";
+                }
+            }
+            function playerOpenFolder() {
+                if (!S.player.dir) return;
+                const folderName = S.player.dir.split("/").pop() || "Musik";
+                S.musicMode = true;
+                S._scrollToPlaying = true;
+                nav(S.player.dir, folderName);
+            }
+            function playerPrev() {
+                var list = S.player.list;
+                if (!list.length) return;
+                var newIdx = S.player.idx - 1;
+                if (newIdx < 0) newIdx = list.length - 1;
+                var f = list[newIdx];
+                playAudio(f.name, f.dir, list, newIdx);
+            }
+            function playerNext() {
+                var list = S.player.list;
+                if (!list.length) return;
+                var newIdx = S.player.idx + 1;
+                if (newIdx >= list.length) newIdx = 0;
+                var f = list[newIdx];
+                playAudio(f.name, f.dir, list, newIdx);
+            }
+            function playerVolDown() {
+                S.player.volume = Math.max(0, +(S.player.volume - 0.15).toFixed(2));
+                document.getElementById("audioEl").volume = S.player.volume;
+                toast("Lautstärke: " + Math.round(S.player.volume * 100) + " %");
+            }
+            function playerVolUp() {
+                S.player.volume = Math.min(1, +(S.player.volume + 0.15).toFixed(2));
+                document.getElementById("audioEl").volume = S.player.volume;
+                toast("Lautstärke: " + Math.round(S.player.volume * 100) + " %");
+            }
+
+            /* ── RECENT ── */
+            function addRecent(f) {
+                S.recent = (S.recent || []).filter((r) => r.path !== f.path);
+                S.recent.unshift(f);
+                if (S.recent.length > 24) S.recent = S.recent.slice(0, 24);
+                sv();
+            }
+            function renderRecent() {
+                const L = document.getElementById("recentList"),
+                    E = document.getElementById("recentEmpty");
+                if (!(S.recent || []).length) {
+                    L.innerHTML = "";
+                    E.style.display = "flex";
+                    return;
+                }
+                E.style.display = "none";
+                L.innerHTML = (S.recent || []).map((f, i) => itemHTML(f, i)).join("");
+            }
+
+            /* ── SORT ── */
+            function openSort() {
+                document.getElementById("so-random").style.display = S.musicMode ? "flex" : "none";
+                show("sortBg");
+                document.getElementById("sortSheet").classList.add("on");
+            }
+            function closeSort() {
+                document.getElementById("sortSheet").classList.remove("on");
+                hide("sortBg");
+            }
+            function setSort(k) {
+                S.sortBy = k;
+                if (k !== "random") sv();
+                document.querySelectorAll(".sort-opt").forEach((e) => e.classList.remove("on"));
+                document.getElementById("so-" + k).classList.add("on");
+                closeSort();
+                if (document.getElementById("fileScreen").classList.contains("on")) loadDir(S.path);
+            }
+            function sortArr(arr) {
+                const dirs = arr.filter((e) => e.type === "dir"),
+                    files = arr.filter((e) => e.type !== "dir");
+                if (S.sortBy === "random") {
+                    const audioFiles = files.filter((e) => gt(e.name) === "aud");
+                    const otherFiles = files.filter((e) => gt(e.name) !== "aud");
+                    for (let i = audioFiles.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [audioFiles[i], audioFiles[j]] = [audioFiles[j], audioFiles[i]];
+                    }
+                    const nc = (a, b) => a.name.localeCompare(b.name, "de");
+                    return [...dirs.sort(nc), ...audioFiles, ...otherFiles.sort(nc)];
+                }
+                const c =
+                    {
+                        name: (a, b) => a.name.localeCompare(b.name, "de"),
+                        date: (a, b) => (b.mtime || 0) - (a.mtime || 0),
+                        size: (a, b) => (b.size || 0) - (a.size || 0),
+                        type: (a, b) => gt(a.name).localeCompare(gt(b.name)) || a.name.localeCompare(b.name),
+                    }[S.sortBy] || ((a, b) => a.name.localeCompare(b.name));
+                return [...dirs.sort(c), ...files.sort(c)];
+            }
+
+            /* ── CONTEXT ── */
+            function openCtx(name, type, dir) {
+                const d = dir || S.path;
+                S.ctxFile = { name, type, path: d + "/" + name, dir: d };
+                document.getElementById("ctxName").textContent = name;
+                document.getElementById("ctxShareBtn").style.display = type === "dir" ? "none" : "flex";
+                document.getElementById("ctxPackBtn").style.display = type === "dir" ? "flex" : "none";
+                show("ctxBg");
+                document.getElementById("ctxSheet").classList.add("on");
+            }
+            function closeCtx() {
+                document.getElementById("ctxSheet").classList.remove("on");
+                hide("ctxBg");
+            }
+
+            /* ── SELECT ALL ── */
+            function toggleSelectAll() {
+                if (!S.multiMode) return;
+                const allSel =
+                    (S.files || []).length > 0 &&
+                    (S.files || []).every((f) => S.selected.find((s) => s.path === S.path + "/" + f.name));
+                if (allSel) {
+                    S.selected = [];
+                    document.querySelectorAll(".fitem.sel").forEach((b) => b.classList.remove("sel"));
+                } else {
+                    (S.files || []).forEach(function (f, i) {
+                        const path = S.path + "/" + f.name;
+                        if (!S.selected.find((s) => s.path === path)) {
+                            S.selected.push({ name: f.name, type: f.type, path: path, dir: S.path });
+                            const btn = document.getElementById("fi_" + i);
+                            if (btn) btn.classList.add("sel");
+                        }
+                    });
+                }
+                updateMultiBar();
+            }
+            function updateSelectAllBtn() {
+                const btn = document.getElementById("btnSelectAll");
+                if (!btn) return;
+                const allSel =
+                    (S.files || []).length > 0 &&
+                    (S.files || []).every((f) => S.selected.find((s) => s.path === S.path + "/" + f.name));
+                btn.classList.toggle("all-sel", allSel);
+            }
+
+            /* ── MULTI-SELECT ── */
+            function toggleMultiMode() {
+                S.multiMode = !S.multiMode;
+                if (!S.multiMode) {
+                    exitMultiMode();
+                } else {
+                    document.body.classList.add("multi-mode");
+                    document.getElementById("btnMulti").classList.add("on");
+                }
+            }
+            function exitMultiMode() {
+                if (!S.multiMode && !S.selected.length) return;
+                S.multiMode = false;
+                S.selected = [];
+                document.body.classList.remove("multi-mode");
+                const btnMulti = document.getElementById("btnMulti");
+                if (btnMulti) btnMulti.classList.remove("on");
+                document.getElementById("multiBar").classList.remove("on");
+                document.querySelectorAll(".fitem.sel").forEach((b) => b.classList.remove("sel"));
+                const btnSA = document.getElementById("btnSelectAll");
+                if (btnSA) btnSA.classList.remove("all-sel");
+            }
+            function toggleSelect(name, type, dir, idx) {
+                const d = dir || S.path;
+                const path = d + "/" + name;
+                const selIdx = S.selected.findIndex((f) => f.path === path);
+                const btn = document.getElementById("fi_" + idx);
+                if (selIdx === -1) {
+                    S.selected.push({ name, type, path, dir: d });
+                    if (btn) btn.classList.add("sel");
+                } else {
+                    S.selected.splice(selIdx, 1);
+                    if (btn) btn.classList.remove("sel");
+                }
+                updateMultiBar();
+            }
+            function updateMultiBar() {
+                const n = S.selected.length;
+                document.getElementById("multiCount").textContent =
+                    n + (n === 1 ? " Datei ausgew\u00e4hlt" : " Dateien ausgew\u00e4hlt");
+                document.getElementById("multiBar").classList.toggle("on", n > 0);
+                // hide share button when only dirs are selected
+                const hasFile = S.selected.some((f) => f.type !== "dir");
+                const btnSh = document.getElementById("btnMultiShare");
+                if (btnSh) btnSh.style.display = hasFile ? "" : "none";
+                updateSelectAllBtn();
+            }
+            async function multiDelete() {
+                if (!S.selected.length) return;
+                if (
+                    !S.trashOn &&
+                    !confirm(
+                        S.selected.length +
+                            (S.selected.length === 1 ? " Datei" : " Dateien") +
+                            " dauerhaft l\u00f6schen?",
+                    )
+                )
+                    return;
+                const files = [...S.selected];
+                exitMultiMode();
+                let n = 0;
+                for (const f of files) {
+                    if (S.trashOn) {
+                        const trashName = Date.now() + "_" + f.name;
+                        S.trashItems.push({ ...f, deletedAt: Date.now(), trashName });
+                        if (S.isCap) {
+                            try {
+                                const { Filesystem } = window.Capacitor.Plugins;
+                                const trashPath = "/sdcard/.fm_trash/";
+                                try {
+                                    await Filesystem.mkdir({ path: trashPath, recursive: true });
+                                } catch (e) {}
+                                await Filesystem.rename({ from: f.path, to: trashPath + trashName });
+                            } catch (e) {}
+                        }
+                    } else {
+                        if (S.isCap) {
+                            try {
+                                await window.Capacitor.Plugins.Filesystem.deleteFile({ path: f.path });
+                            } catch (e) {}
+                        }
+                    }
+                    n++;
+                }
+                sv();
+                updTrSub();
+                toast(
+                    S.trashOn
+                        ? n + (n === 1 ? " Datei" : " Dateien") + " in Papierkorb"
+                        : n + (n === 1 ? " Datei" : " Dateien") + " gel\u00f6scht",
+                );
+                reload();
+            }
+            async function openMoveDlg() {
+                if (!S.selected.length) return;
+                // Start one level above the source directory so subdirs are immediately visible
+                const parts = S.path.split("/").filter(Boolean);
+                parts.pop();
+                S.movePath = parts.length ? "/" + parts.join("/") : "/sdcard";
+                show("moveBg");
+                document.getElementById("moveSheet").classList.add("on");
+                await loadMoveDirs();
+            }
+            function closeMoveDlg() {
+                document.getElementById("moveSheet").classList.remove("on");
+                hide("moveBg");
+            }
+            async function loadMoveDirs() {
+                document.getElementById("moveTitle").textContent = S.movePath.split("/").pop() || "Speicher";
+                document.getElementById("moveDest").textContent = S.movePath;
+                document.getElementById("moveBtnBack").style.display = S.movePath === "/sdcard" ? "none" : "flex";
+                const L = document.getElementById("moveDirList");
+                L.innerHTML = '<div style="padding:20px;text-align:center;color:var(--txt3)">L\u00e4dt \u2026</div>';
+                const entries = S.isCap ? await capReadDir(S.movePath) : demoFiles(S.movePath);
+                const dirs = entries.filter((e) => e.type === "dir" || e.type === "directory");
+                if (!dirs.length) {
+                    L.innerHTML =
+                        '<div style="padding:20px;text-align:center;color:var(--txt3)">Keine Unterordner</div>';
+                    return;
+                }
+                L.innerHTML = dirs
+                    .map(
+                        (d) => `<button class="move-dir-item" onclick="moveDirDown('${eq(d.name)}')">
+              <div class="ficon fi-dir" style="width:36px;height:36px;border-radius:9px;flex-shrink:0">${ICONS.dir}</div>
+              <div class="fname">${esc(d.name)}</div>
+              <svg style="width:16px;height:16px;fill:var(--txt3);flex-shrink:0" viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+            </button>`,
+                    )
+                    .join("");
+            }
+            async function moveDirDown(name) {
+                S.movePath = S.movePath + "/" + name;
+                await loadMoveDirs();
+            }
+            async function moveDirUp() {
+                const parts = S.movePath.split("/").filter(Boolean);
+                if (parts.length > 1) {
+                    parts.pop();
+                    S.movePath = "/" + parts.join("/");
+                    await loadMoveDirs();
+                }
+            }
+            async function doMultiMove() {
+                if (!S.selected.length) return;
+                if (S.movePath === S.path) {
+                    toast("Ziel ist gleich wie Quelle");
+                    return;
+                }
+                const files = [...S.selected];
+                closeMoveDlg();
+                exitMultiMode();
+                let moved = 0;
+                for (const f of files) {
+                    const dest = S.movePath + "/" + f.name;
+                    if (S.isCap) {
+                        try {
+                            await window.Capacitor.Plugins.Filesystem.rename({
+                                from: f.path,
+                                to: dest,
+                            });
+                            moved++;
+                        } catch (e) {
+                            toast("Fehler: " + f.name);
+                        }
+                    } else {
+                        moved++;
+                    }
+                }
+                toast(moved + (moved === 1 ? " Datei" : " Dateien") + " verschoben");
+                reload();
+            }
+
+            async function multiShare() {
+                const files = S.selected.filter((f) => f.type !== "dir");
+                if (!files.length) return;
+                const urls = files.map((f) => "file://" + f.path);
+                if (S.isCap && window.Capacitor.Plugins.Share) {
+                    window.Capacitor.Plugins.Share.share({
+                        files: urls,
+                        dialogTitle: "Teilen",
+                    }).catch(() => {});
+                } else {
+                    toast("Teilen: " + files.map((f) => f.name).join(", "));
+                }
+            }
+
+            async function ctxDo(act) {
+                closeCtx();
+                const f = S.ctxFile;
+                if (!f) return;
+                if (act === "open") onTap(f.name, f.type, f.dir);
+                else if (act === "share") {
+                    if (S.isCap && window.Capacitor.Plugins.Share)
+                        window.Capacitor.Plugins.Share.share({
+                            title: f.name,
+                            url: "file://" + f.path,
+                            dialogTitle: "Teilen",
+                        }).catch(() => {});
+                    else toast("Teilen: " + f.name);
+                } else if (act === "rename") openRename(f);
+                else if (act === "pack") packAndToast(f.path, f.dir, f.name);
+                else if (act === "delete") doDelete(f);
+            }
+
+            /* ── DELETE ── */
+            async function doDelete(f) {
+                if (S.trashOn) {
+                    const trashName = Date.now() + "_" + f.name;
+                    S.trashItems.push({ ...f, deletedAt: Date.now(), trashName });
+                    sv();
+                    updTrSub();
+                    if (S.isCap) {
+                        try {
+                            const { Filesystem } = window.Capacitor.Plugins;
+                            const trashPath = "/sdcard/.fm_trash/";
+
+                            // Trash-Ordner anlegen falls nicht vorhanden
+                            try {
+                                await Filesystem.mkdir({ path: trashPath, recursive: true });
+                            } catch (e) {}
+
+                            // Datei in Papierkorb verschieben (rename = move)
+                            await Filesystem.rename({ from: f.path, to: trashPath + trashName });
+                        } catch (e) {
+                            toast("Fehler: " + e.message);
+                            return;
+                        }
+                    }
+                    toast("In Papierkorb verschoben");
+                } else {
+                    if (!confirm("Dauerhaft löschen?")) return;
+                    if (S.isCap) {
+                        try {
+                            await window.Capacitor.Plugins.Filesystem.deleteFile({ path: f.path });
+                        } catch (e) {
+                            toast("Fehler");
+                            return;
+                        }
+                    }
+                    toast("Gelöscht");
+                }
+                reload();
+            }
+
+            /* ── TRASH ── */
+            function openTrash() {
+                show("trashBg");
+                document.getElementById("trashSheet").classList.add("on");
+                renderTrash();
+            }
+            function closeTrash() {
+                document.getElementById("trashSheet").classList.remove("on");
+                hide("trashBg");
+            }
+            function renderTrash() {
+                const L = document.getElementById("trashList"),
+                    E = document.getElementById("trashEmpty");
+                if (!S.trashItems.length) {
+                    L.innerHTML = "";
+                    E.style.display = "flex";
+                    return;
+                }
+                E.style.display = "none";
+                L.innerHTML = S.trashItems
+                    .map(
+                        (f, i) => `
+            <button class="fitem" style="animation-delay:${i * 0.025}s">
+              <div class="ficon ${fc(f)}">${fi(f)}</div>
+              <div class="fmeta"><div class="fname">${esc(f.name)}</div><div class="fsub">Gelöscht ${fmtDate(f.deletedAt)}</div></div>
+              <button class="fmore" onclick="event.stopPropagation();restoreItem(${i})" title="Wiederherstellen">
+                <svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18z" fill="var(--acc)"/></svg>
+              </button>
+            </button>`,
+                    )
+                    .join("");
+            }
+            function restoreItem(i) {
+                const f = S.trashItems[i];
+                S.trashItems.splice(i, 1);
+                sv();
+                updTrSub();
+                if (S.isCap) {
+                    try {
+                        window.Capacitor.Plugins.Filesystem.rename({
+                            from: "/sdcard/.fm_trash/" + (f.trashName || f.name),
+                            to: f.path,
+                        });
+                    } catch (e) {}
+                }
+                toast("Wiederhergestellt");
+                renderTrash();
+            }
+            function restoreAll() {
+                S.trashItems.forEach((f) => {
+                    if (S.isCap) {
+                        try {
+                            window.Capacitor.Plugins.Filesystem.rename({
+                                from: "/sdcard/.fm_trash/" + (f.trashName || f.name),
+                                to: f.path,
+                            });
+                        } catch (e) {}
+                    }
+                });
+                S.trashItems = [];
+                sv();
+                updTrSub();
+                toast("Alle wiederhergestellt");
+                renderTrash();
+            }
+            function emptyTrash() {
+                if (!S.trashItems.length) {
+                    toast("Bereits leer");
+                    return;
+                }
+                if (!confirm("Papierkorb wirklich leeren?")) return;
+                if (S.isCap)
+                    S.trashItems.forEach((f) => {
+                        try {
+                            window.Capacitor.Plugins.Filesystem.deleteFile({
+                                path: "/sdcard/.fm_trash/" + (f.trashName || f.name),
+                            });
+                        } catch (e) {}
+                    });
+                S.trashItems = [];
+                sv();
+                updTrSub();
+                toast("Papierkorb geleert");
+                renderTrash();
+                closeSettings();
+            }
+            function updTrSub() {
+                const n = S.trashItems.length,
+                    t = n ? n + " Datei" + (n === 1 ? "" : "en") + " darin" : "Leer";
+                document.getElementById("trSub").textContent = t;
+                document.getElementById("setTrCnt").textContent = t;
+            }
+
+            /* ── SETTINGS ── */
+            function clearRecent() {
+                if (!(S.recent || []).length) {
+                    toast("Bereits leer");
+                    return;
+                }
+                S.recent = [];
+                localStorage.setItem("fm3r", "[]");
+                toast("Zuletzt geleert");
+                if (document.getElementById("recentScreen").classList.contains("on")) renderRecent();
+            }
+
+            function showSettings() {
+                setNav(2);
+                show("setBg");
+                document.getElementById("setSheet").classList.add("on");
+                updTrSub();
+            }
+            function closeSettings() {
+                document.getElementById("setSheet").classList.remove("on");
+                hide("setBg");
+                setNav(0);
+            }
+
+            /* ── RENAME ── */
+            function openRename(f) {
+                S.renameTarget = f;
+                document.getElementById("renameIn").value = f.name;
+                document.getElementById("renameDlg").classList.add("on");
+                setTimeout(() => document.getElementById("renameIn").select(), 80);
+            }
+            function closeRename() {
+                document.getElementById("renameDlg").classList.remove("on");
+            }
+            async function doRename() {
+                const n = document.getElementById("renameIn").value.trim();
+                if (!n || n === S.renameTarget.name) {
+                    closeRename();
+                    return;
+                }
+                if (S.isCap) {
+                    try {
+                        await window.Capacitor.Plugins.Filesystem.rename({
+                            from: S.path + "/" + S.renameTarget.name,
+                            to: S.path + "/" + n,
+                        });
+                        toast("Umbenannt");
+                        reload();
+                    } catch (e) {
+                        toast("Fehler");
+                    }
+                } else toast("Umbenannt: " + n);
+                closeRename();
+            }
+
+            /* ── FOLDER ── */
+            function openFolderDlg() {
+                document.getElementById("folderIn").value = "Neuer Ordner";
+                document.getElementById("folderDlg").classList.add("on");
+                setTimeout(() => document.getElementById("folderIn").select(), 80);
+            }
+            function closeFolderDlg() {
+                document.getElementById("folderDlg").classList.remove("on");
+            }
+            async function doCreateFolder() {
+                const n = document.getElementById("folderIn").value.trim();
+                if (!n) {
+                    closeFolderDlg();
+                    return;
+                }
+                if (S.isCap) {
+                    try {
+                        await window.Capacitor.Plugins.Filesystem.mkdir({ path: S.path + "/" + n, recursive: false });
+                        toast("Ordner erstellt");
+                        reload();
+                    } catch (e) {
+                        toast("Fehler");
+                    }
+                } else toast("📁 " + n + " erstellt");
+                closeFolderDlg();
+            }
+
+            /* ── SEARCH ── */
+            function openSearch() {
+                document.getElementById("searchBar").classList.add("on");
+                setTimeout(() => document.getElementById("searchInput").focus(), 50);
+            }
+            function closeSearch() {
+                document.getElementById("searchBar").classList.remove("on");
+                document.getElementById("searchInput").value = "";
+                if (S.files.length)
+                    renderList(S.files, document.getElementById("fileList"), document.getElementById("emptyMsg"));
+            }
+            async function doSearch() {
+                const raw = document.getElementById("searchInput").value.trim();
+                if (!raw) return;
+                const q = raw.toLowerCase();
+                const L = document.getElementById("fileList"),
+                    E = document.getElementById("emptyMsg");
+                L.innerHTML =
+                    '<div style="padding:40px;text-align:center;color:var(--txt3);font-weight:600">Suche …</div>';
+                E.style.display = "none";
+                const results = S.isCap
+                    ? await searchRecursive(S.path, q)
+                    : S.files.filter((f) => f.name.toLowerCase().includes(q)).map((f) => ({ ...f, dir: S.path }));
+                renderList(results, L, E);
+            }
+            async function searchRecursive(rootPath, q) {
+                const results = [];
+                const stack = [rootPath];
+                while (stack.length) {
+                    const dir = stack.pop();
+                    const entries = await capReadDir(dir);
+                    for (const f of entries) {
+                        if (!S.hidden && f.name.startsWith(".")) continue;
+                        if (f.name.toLowerCase().includes(q)) {
+                            results.push({ ...f, dir });
+                        }
+                        if (f.type === "dir") {
+                            stack.push(dir + "/" + f.name);
+                        }
+                    }
+                }
+                return results;
+            }
+
+            /* ── TOAST ── */
+            let _tt;
+            function toast(msg) {
+                const t = document.getElementById("toast");
+                t.textContent = msg;
+                t.classList.add("on");
+                clearTimeout(_tt);
+                _tt = setTimeout(() => t.classList.remove("on"), 2400);
+            }
+            function toastAnimated(prefix) {
+                const t = document.getElementById("toast");
+                clearTimeout(_tt);
+                // Breite am längsten Text fixieren, damit kein Größensprung entsteht
+                t.textContent = prefix + " ...";
+                t.classList.add("on");
+                t.style.minWidth = t.offsetWidth + "px";
+                let dots = 1;
+                t.textContent = prefix + " .";
+                const iv = setInterval(function () {
+                    dots = dots >= 3 ? 1 : dots + 1;
+                    t.textContent = prefix + " " + ".".repeat(dots);
+                }, 400);
+                return function stop() {
+                    clearInterval(iv);
+                    t.style.minWidth = "";
+                };
+            }
+
+            /* ── HELPERS ── */
+            function show(id) {
+                document.getElementById(id).classList.add("on");
+            }
+            function hide(id) {
+                document.getElementById(id).classList.remove("on");
+            }
+            function closeAllSheets() {
+                ["ctxSheet", "sortSheet", "setSheet", "trashSheet", "moveSheet"].forEach((id) =>
+                    document.getElementById(id).classList.remove("on"),
+                );
+                ["ctxBg", "sortBg", "setBg", "trashBg", "moveBg"].forEach((id) =>
+                    document.getElementById(id).classList.remove("on"),
+                );
+            }
+            function esc(s) {
+                return String(s)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;");
+            }
+            function eq(s) {
+                return String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            }
+
+            /* ── FILE TYPES ── */
+            function gt(name) {
+                const e = name.split(".").pop().toLowerCase();
+                return (
+                    {
+                        jpg: "img",
+                        jpeg: "img",
+                        png: "img",
+                        gif: "img",
+                        webp: "img",
+                        heic: "img",
+                        mp4: "vid",
+                        mkv: "vid",
+                        avi: "vid",
+                        mov: "vid",
+                        webm: "vid",
+                        mp3: "aud",
+                        ogg: "aud",
+                        wav: "aud",
+                        flac: "aud",
+                        aac: "aud",
+                        m4a: "aud",
+                        pdf: "pdf",
+                        doc: "doc",
+                        docx: "doc",
+                        xls: "doc",
+                        xlsx: "doc",
+                        ppt: "doc",
+                        pptx: "doc",
+                        odt: "doc",
+                        zip: "zip",
+                        rar: "zip",
+                        gz: "zip",
+                        tar: "zip",
+                        "7z": "zip",
+                        js: "code",
+                        ts: "code",
+                        py: "code",
+                        java: "code",
+                        c: "code",
+                        cpp: "code",
+                        kt: "code",
+                        html: "code",
+                        css: "code",
+                        json: "code",
+                        xml: "code",
+                        sh: "code",
+                        apk: "apk",
+                        txt: "file",
+                        md: "file",
+                        log: "file",
+                        csv: "file",
+                    }[e] || "file"
+                );
+            }
+            function fc(f) {
+                const t = f.type === "dir" ? "dir" : gt(f.name);
+                return (
+                    {
+                        dir: "fi-dir",
+                        img: "fi-img",
+                        vid: "fi-vid",
+                        aud: "fi-aud",
+                        pdf: "fi-pdf",
+                        doc: "fi-doc",
+                        zip: "fi-zip",
+                        code: "fi-code",
+                        apk: "fi-apk",
+                        file: "fi-file",
+                    }[t] || "fi-file"
+                );
+            }
+            const ICONS = {
+                dir: '<svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>',
+                img: '<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>',
+                vid: '<svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>',
+                aud: '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>',
+                pdf: '<svg viewBox="0 0 24 24"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm8 5.5h1v-3h-1v3z"/></svg>',
+                doc: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>',
+                zip: '<svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-2 10h-2v2h-2v-2h2v-2h-2v-2h2v2h2v2z"/></svg>',
+                code: '<svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>',
+                apk: '<svg viewBox="0 0 24 24"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85a.637.637 0 0 0-.83.22l-1.88 3.24a11.46 11.46 0 0 0-8.94 0L5.65 5.67a.643.643 0 0 0-.87-.2c-.28.18-.37.54-.22.83L6.4 9.48A10.78 10.78 0 0 0 1 18h22a10.78 10.78 0 0 0-5.4-8.52zM7 15.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm10 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z"/></svg>',
+                file: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>',
+            };
+            function fi(f) {
+                const t = f.type === "dir" ? "dir" : gt(f.name);
+                return ICONS[t] || ICONS.file;
+            }
+            function fileMeta(f) {
+                if (f.type === "dir") return "Ordner";
+                const p = [];
+                if (f.size) p.push(fmtSz(f.size));
+                if (f.mtime) p.push(fmtDate(f.mtime));
+                return p.join(" · ") || gt(f.name).toUpperCase();
+            }
+            function fmtSz(b) {
+                if (b < 1024) return b + " B";
+                if (b < 1048576) return (b / 1024).toFixed(1) + " KB";
+                if (b < 1073741824) return (b / 1048576).toFixed(1) + " MB";
+                return (b / 1073741824).toFixed(2) + " GB";
+            }
+            function fmtDate(ts) {
+                return new Date(ts).toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" });
+            }
+            function mime(n) {
+                const e = n.split(".").pop().toLowerCase();
+                return (
+                    {
+                        jpg: "image/jpeg",
+                        jpeg: "image/jpeg",
+                        png: "image/png",
+                        mp4: "video/mp4",
+                        mp3: "audio/mpeg",
+                        pdf: "application/pdf",
+                        docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        zip: "application/zip",
+                        apk: "application/vnd.android.package-archive",
+                    }[e] || "application/octet-stream"
+                );
+            }
+
+            /* ── DEMO DATA ── */
+            function demoFiles(path) {
+                const D = Date.now(),
+                    H = 86400000;
+                const db = {
+                    "/sdcard": [
+                        { name: "DCIM", type: "dir", size: 0, mtime: D - H },
+                        { name: "Download", type: "dir", size: 0, mtime: D - H * 0.1 },
+                        { name: "Documents", type: "dir", size: 0, mtime: D - H * 2 },
+                        { name: "Music", type: "dir", size: 0, mtime: D - H * 5 },
+                        { name: "Android", type: "dir", size: 0, mtime: D - H * 10 },
+                        { name: "Notizen.txt", type: "file", size: 3200, mtime: D - H * 0.5 },
+                        { name: "backup.zip", type: "file", size: 10485760, mtime: D - H * 3 },
+                    ],
+                    "/sdcard/Download": [
+                        { name: "Rechnung_März.pdf", type: "file", size: 524288, mtime: D - 3600000 },
+                        { name: "Setup.apk", type: "file", size: 8388608, mtime: D - H },
+                        { name: "Bericht_Q1.docx", type: "file", size: 204800, mtime: D - H * 2 },
+                        { name: "Foto.jpg", type: "file", size: 3145728, mtime: D - H * 3 },
+                    ],
+                    "/sdcard/DCIM": [
+                        { name: "Camera", type: "dir", size: 0, mtime: D - H },
+                        { name: "Screenshots", type: "dir", size: 0, mtime: D - H * 0.2 },
+                    ],
+                    "/sdcard/Documents": [
+                        { name: "Lebenslauf.pdf", type: "file", size: 204800, mtime: D - H * 5 },
+                        { name: "Notizen.txt", type: "file", size: 8192, mtime: D - H },
+                        { name: "Budget.xlsx", type: "file", size: 102400, mtime: D - H * 2 },
+                    ],
+                    "/sdcard/Music": [
+                        { name: "Alben", type: "dir", size: 0, mtime: D - H * 7 },
+                        { name: "Song.flac", type: "aud", size: 31457280, mtime: D - H * 3 },
+                        { name: "Track02.mp3", type: "aud", size: 4194304, mtime: D - H * 1 },
+                        { name: "Podcast.m4a", type: "aud", size: 52428800, mtime: D - H * 0.5 },
+                        { name: "Demo.wav", type: "aud", size: 10485760, mtime: D - H * 4 },
+                    ],
+                };
+                return db[path] || [];
+            }
+
+            /* ── KEYBOARD ── */
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") closeAllSheets();
+                if (e.key === "Enter") {
+                    if (document.getElementById("renameDlg").classList.contains("on")) doRename();
+                    if (document.getElementById("folderDlg").classList.contains("on")) doCreateFolder();
+                }
+            });
+            /* ── PULL TO REFRESH ── */
+            (function () {
+                const app = document.getElementById("app");
+                const ind = document.getElementById("pullRefresher");
+                let startY = 0,
+                    prevDy = 0;
+                const THRESHOLD = 72;
+
+                function isOnHome() {
+                    return document.getElementById("homeScreen").style.display !== "none";
+                }
+
+                app.addEventListener(
+                    "touchstart",
+                    function (e) {
+                        startY = e.touches[0].clientY;
+                        prevDy = 0;
+                        ind.style.transition = "none";
+                        ind.style.transform = "translateY(-56px)";
+                        ind.style.opacity = "0";
+                    },
+                    { passive: true },
+                );
+
+                app.addEventListener(
+                    "touchmove",
+                    function (e) {
+                        if (isOnHome()) return;
+                        if (app.scrollTop > 4) return;
+                        const dy = e.touches[0].clientY - startY;
+                        if (dy <= 0) return;
+                        prevDy = dy;
+                        const progress = Math.min(dy / THRESHOLD, 1);
+                        const ty = -56 + progress * 68;
+                        ind.style.transform = "translateY(" + ty + "px)";
+                        ind.style.opacity = String(Math.min(progress * 1.5, 1));
+                    },
+                    { passive: true },
+                );
+
+                app.addEventListener(
+                    "touchend",
+                    function () {
+                        const dy = prevDy;
+                        prevDy = 0;
+                        ind.style.transition = "transform 0.25s ease, opacity 0.25s ease";
+                        if (dy >= THRESHOLD) {
+                            ind.style.transform = "translateY(12px)";
+                            ind.style.opacity = "1";
+                            ind.classList.add("spinning");
+                            app.scrollTop = 0;
+                            setTimeout(async function () {
+                                if (document.getElementById("fileScreen").classList.contains("on")) {
+                                    await loadDir(S.path);
+                                } else if (document.getElementById("recentScreen").classList.contains("on")) {
+                                    renderRecent();
+                                }
+                                app.scrollTop = 0;
+                                ind.classList.remove("spinning");
+                                ind.style.transform = "translateY(-56px)";
+                                ind.style.opacity = "0";
+                                setTimeout(function () {
+                                    ind.style.transition = "none";
+                                }, 250);
+                            }, 400);
+                        } else {
+                            ind.style.transform = "translateY(-56px)";
+                            ind.style.opacity = "0";
+                            setTimeout(function () {
+                                ind.style.transition = "none";
+                            }, 250);
+                        }
+                    },
+                    { passive: true },
+                );
+            })();
+
+            if (window.Capacitor?.isNativePlatform?.()) {
+                window.Capacitor.Plugins.App.addListener("backButton", ({ canGoBack }) => {
+                    if (document.getElementById("moveSheet").classList.contains("on")) {
+                        closeMoveDlg();
+                        return;
+                    }
+                    if (document.getElementById("ctxSheet").classList.contains("on")) {
+                        closeCtx();
+                        return;
+                    }
+                    if (document.getElementById("trashSheet").classList.contains("on")) {
+                        closeTrash();
+                        return;
+                    }
+                    if (document.getElementById("setSheet").classList.contains("on")) {
+                        closeSettings();
+                        return;
+                    }
+                    if (document.getElementById("searchBar").classList.contains("on")) {
+                        closeSearch();
+                        return;
+                    }
+                    if (document.getElementById("renameDlg").classList.contains("on")) {
+                        closeRename();
+                        return;
+                    }
+                    if (document.getElementById("folderDlg").classList.contains("on")) {
+                        closeFolderDlg();
+                        return;
+                    }
+                    if (S.multiMode) {
+                        exitMultiMode();
+                        return;
+                    }
+                    if (S.history.length) {
+                        goBack();
+                        return;
+                    }
+                    window.Capacitor.Plugins.App.exitApp();
+                });
+            }
+        </script>
+    </body>
+</html>
