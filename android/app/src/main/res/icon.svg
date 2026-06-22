@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1E1E1E"/>
+      <stop offset="100%" style="stop-color:#111111"/>
+    </linearGradient>
+    <linearGradient id="folder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F0BC50"/>
+      <stop offset="100%" style="stop-color:#C88A18"/>
+    </linearGradient>
+    <linearGradient id="folderFace" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E8A830"/>
+      <stop offset="100%" style="stop-color:#B87820"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.10"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="24" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="round">
+      <rect width="1024" height="1024" rx="224" ry="224"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#bg)"/>
+
+  <!-- Subtle grid texture -->
+  <rect width="1024" height="1024" rx="224" ry="224" fill="none"
+    stroke="#ffffff" stroke-width="1" stroke-opacity="0.03"/>
+
+  <!-- Folder back (tab) -->
+  <path d="M 220 370 L 220 340 Q 220 310 250 310 L 430 310 Q 455 310 465 330 L 485 360 L 790 360 Q 820 360 820 390 L 820 420 L 220 420 Z"
+    fill="url(#folder)" filter="url(#shadow)"/>
+
+  <!-- Folder body -->
+  <rect x="220" y="400" width="600" height="360" rx="28" ry="28"
+    fill="url(#folderFace)" filter="url(#shadow)"/>
+
+  <!-- Folder body top overlap -->
+  <rect x="220" y="390" width="600" height="40" rx="0"
+    fill="url(#folderFace)"/>
+
+  <!-- File lines inside folder -->
+  <rect x="300" y="470" width="260" height="28" rx="14" fill="#ffffff" opacity="0.25"/>
+  <rect x="300" y="522" width="200" height="28" rx="14" fill="#ffffff" opacity="0.18"/>
+  <rect x="300" y="574" width="230" height="28" rx="14" fill="#ffffff" opacity="0.18"/>
+  <rect x="300" y="626" width="170" height="28" rx="14" fill="#ffffff" opacity="0.12"/>
+
+  <!-- Checkmark / accent dot -->
+  <circle cx="680" cy="560" r="80" fill="#131313" opacity="0.5"/>
+  <circle cx="680" cy="560" r="68" fill="#E8A830"/>
+  <!-- Check icon -->
+  <polyline points="648,560 668,582 716,534"
+    fill="none" stroke="#131313" stroke-width="22"
+    stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Shine overlay -->
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#shine)"/>
+</svg>
