@@ -1,0 +1,19 @@
+{
+    "appId": "de.epp.cfiles",
+    "appName": "Meine Dateien",
+    "webDir": "www",
+    "server": {
+        "androidScheme": "https"
+    },
+    "plugins": {
+        "Filesystem": {
+            "androidExternalStoragePermission": true
+        }
+    },
+    "android": {
+        "allowMixedContent": true,
+        "captureInput": true,
+        "webContentsDebuggingEnabled": true,
+        "edgeToEdge": true
+    }
+}
