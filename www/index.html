@@ -751,6 +751,11 @@
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
+			
+			.move-btn-row {
+				display: flex;
+				gap: 10px;
+			}
 
             /* ── EMPTY ── */
             .empty {
@@ -1866,9 +1871,12 @@
             </div>
             <div id="moveDirList" style="overflow-y: auto; max-height: 50vh"></div>
             <div class="move-confirm">
-                <div class="move-dest" id="moveDest">/sdcard</div>
-                <button class="dlg-btn ok" onclick="doMultiMove()">Hierher verschieben</button>
-            </div>
+				<div class="move-dest" id="moveDest">/sdcard</div>
+				<div class="move-btn-row">
+					<button class="dlg-btn ok" onclick="doMultiMove()">Hierher verschieben</button>
+					<button class="dlg-btn ok" onclick="createFolderInMove()">Neuer Ordner</button>
+				</div>
+			</div>
         </div>
 
         <!-- RENAME DIALOG -->
@@ -2905,24 +2913,54 @@
             function closeFolderDlg() {
                 document.getElementById("folderDlg").classList.remove("on");
             }
+			function createFolderInMove() {
+                S.createFolderInMove = true;
+                openFolderDlg();
+            }
             async function doCreateFolder() {
                 const n = document.getElementById("folderIn").value.trim();
                 if (!n) {
                     closeFolderDlg();
                     return;
                 }
+                
+                // Bestimme den Zielordner (entweder S.path oder S.movePath)
+                const targetPath = S.createFolderInMove ? S.movePath : S.path;
+                
                 if (S.isCap) {
                     try {
-                        await window.Capacitor.Plugins.Filesystem.mkdir({ path: S.path + "/" + n, recursive: false });
+                        await window.Capacitor.Plugins.Filesystem.mkdir({ 
+                            path: targetPath + "/" + n, 
+                            recursive: false 
+                        });
                         toast("Ordner erstellt");
-                        reload();
+                        
+                        // Unterschiedliche Behandlung je nach Modus
+                        if (S.createFolderInMove) {
+                            // Im moveMode: moveSheet aktualisieren
+                            await loadMoveDirs();
+                            S.createFolderInMove = false;
+                        } else {
+                            // Normal-Mode: ganzes Directory neuladen
+                            reload();
+                        }
                     } catch (e) {
                         toast("Fehler");
                     }
-                } else toast("📁 " + n + " erstellt");
+                } else {
+                    toast("📁 " + n + " erstellt");
+                    if (S.createFolderInMove) {
+                        // Im moveMode: moveSheet aktualisieren
+                        await loadMoveDirs();
+                        S.createFolderInMove = false;
+                    } else {
+                        // Normal-Mode: ganzes Directory neuladen
+                        reload();
+                    }
+                }
+                
                 closeFolderDlg();
             }
-
             /* ── SEARCH ── */
             function openSearch() {
                 document.getElementById("searchBar").classList.add("on");
