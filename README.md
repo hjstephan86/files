@@ -2,22 +2,6 @@
 
 Capacitor-basierte Android-App als persönlicher Dateimanager für den privaten Sideload-Einsatz (kein Play Store). Entwickelt und getestet auf dem Pixel 9a mit Android 16.
 
-## Projektstruktur
-
-```
-files/
-├── www/
-│   └── index.html              ← komplette App (HTML + CSS + JS in einer Datei)
-├── android/                    ← generiert von Capacitor
-│   └── app/src/main/
-│       ├── AndroidManifest.xml ← Storage-Permissions
-│       └── java/de/epp/files/
-│           └── MainActivity.java ← MANAGE_EXTERNAL_STORAGE Intent
-├── capacitor.config.json
-├── package.json
-└── README.md
-```
-
 ## Voraussetzungen
 
 - Node.js ≥ 18
