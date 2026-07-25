@@ -2423,7 +2423,18 @@
                     return;
                 }
                 E.style.display = "none";
-                L.innerHTML = (S.recent || []).map((f, i) => itemHTML(f, i)).join("");
+                L.innerHTML = (S.recent || []).map((f, i) => {
+                    const d = Math.min(i * 0.025, 0.25);
+                    const dirArg = f.dir ? `,'${eq(f.dir)}'` : ",''";
+                    const pathDisplay = f.path ? `<div class="fsub">${esc(f.path)}</div>` : "";
+                    return `<button class="fitem" id="fi_${i}" style="animation-delay:${d}s"
+                onclick="onTap('${eq(f.name)}','${f.type}'${dirArg},${i})"
+                oncontextmenu="openCtx('${eq(f.name)}','${f.type}'${dirArg});return false">
+                <div class="fsel-chk"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+                <div class="ficon ${fc(f)}">${fi(f)}</div>
+                <div class="fmeta"><div class="fname">${esc(f.name)}</div>${pathDisplay}</div>
+              </button>`;
+                }).join("");
             }
 
             /* ── SORT ── */
