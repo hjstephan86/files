@@ -1485,7 +1485,7 @@
 
                 <div class="sec-lbl">Schnellzugriff</div>
                 <div class="tiles">
-                    <button class="tile" style="animation-delay: 0.03s" onclick="nav('/sdcard/Download', 'Downloads')">
+                    <button class="tile" style="animation-delay: 0.03s" onclick="navDownloads()">
                         <div class="tile-icon ic-dl">
                             <svg viewBox="0 0 24 24">
                                 <path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z" />
@@ -1982,6 +1982,11 @@
             }
 
             /* ── NAVIGATION ── */
+            function navDownloads() {
+                S.fromDownloads = true;
+                nav("/sdcard/Download", "Downloads");
+                document.getElementById("topTitle").classList.add("new-folder-mode");
+            }
             function navAllFiles() {
                 S.fromAllFiles = true;
                 nav("/sdcard", "Alle Dateien");
@@ -1994,6 +1999,7 @@
             function showHome() {
                 S.musicMode = false;
                 S.fromAllFiles = false;
+                S.fromDownloads = false;
                 document.getElementById("topTitle").classList.remove("new-folder-mode");
                 setNav(0);
                 exitMultiMode();
@@ -2067,7 +2073,7 @@
                 document.getElementById("app").style.paddingTop = "var(--top)";
             }
             function bcTap(i) {
-                if (S.fromAllFiles) {
+                if (S.fromAllFiles || S.fromDownloads) {
                     const t = S.crumbs[i];
                     if (S.path !== t.path) {
                         S.crumbs = S.crumbs.slice(0, i + 1);
@@ -2083,7 +2089,7 @@
                 }
             }
             function topTitleTap() {
-                if (S.fromAllFiles) openFolderDlg();
+                if (S.fromAllFiles || S.fromDownloads) openFolderDlg();
             }
             function jumpBc(i) {
                 const t = S.crumbs[i];

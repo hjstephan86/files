@@ -16,11 +16,13 @@ export PATH=$JAVA_HOME/bin:$PATH
 
 ## Setup & Build
 
+### Erstes Setup (einmalig)
+
 ```bash
 # 1. Dependencies installieren
 npm install
 
-# 2. Android-Plattform generieren
+# 2. Android-Plattform generieren (nur beim ersten Setup)
 npx cap add android
 
 # 3. Web-Assets synchronisieren
@@ -34,11 +36,14 @@ cd android
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Nach Änderungen an `www/index.html` immer:
+### Nach Änderungen (wiederholte Builds)
+
+Nach Änderungen an `www/index.html`:
 
 ```bash
-npx cap sync
-cd android && ./gradlew assembleDebug
+npx cap sync android
+cd android
+./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
@@ -75,7 +80,8 @@ Die `MainActivity.java` öffnet beim ersten Start automatisch die Android-Einste
 | Zuletzt geöffnet                                              | ✅     |
 | Versteckte Dateien ein-/ausblenden                            | ✅     |
 | Hardware-Zurück-Taste                                         | ✅     |
-| **In-App Audioplayer** (MP3, FLAC, AAC, M4A …)                | ✅     |
+| Ordner erstellen (von „Alle Dateien" & „Downloads")           | ✅     |
+| In-App Audioplayer   (MP3, FLAC, AAC, M4A … )                 | ✅     |
 | Playlist aus aktuellem Verzeichnis (Zur / Vor)                | ✅     |
 | Lautstärkeregelung (Leiser / Lauter)                          | ✅     |
 | Pause / Weiter durch Antippen des laufenden Lieds             | ✅     |
@@ -96,6 +102,17 @@ Der In-App Audioplayer unterstützt Hardware-Medientasten – an Kopfhörern, He
 | Vorheriger Titel               | Vorheriges Lied in der Playlist |
 
 Die Steuerung funktioniert auch bei gesperrtem Bildschirm über die Android Media Session.
+
+### Ordner erstellen
+
+Neue Ordner können in den Schnellzugriffen **„Alle Dateien"** und **„Downloads"** erstellt werden:
+
+- Beim Antippen des Titels (z. B. „Alle Dateien" oder „Downloads") öffnet sich ein Dialog zum Erstellen eines Ordners.
+- Ein Standardname **„Neuer Ordner"** wird vorgeschlagen und ist bereits markiert — einfach einen neuen Namen eingeben.
+- Der Ordner wird **im aktuellen Verzeichnis** erstellt.
+- Nach dem Erstellen wird sofort ein Toast-Hinweis angezeigt: **„Ordner erstellt"**.
+- Die Dateiliste wird automatisch aktualisiert — der neue Ordner ist sofort sichtbar.
+- Auch über die **Breadcrumb-Navigation** (Pfad oben) kann ein neuer Ordner erstellt werden, wenn man auf einen Pfad-Element tippt.
 
 ### Ordner packen
 
